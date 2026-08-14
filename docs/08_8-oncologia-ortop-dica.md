@@ -15,7 +15,7 @@
 **Exames da Indicação:** Radiografia e/ou Tomografia Computadorizada e/ou Ressonância Magnética e/ou Ultrassom e/ou PET-CT
 
 **Códigos CBHPM**
-```
+```md
 | Código | Descrição do procedimento | Porte |
 |---|---|---|
 | 3.01.01.91-3 | TU partes moles - exérese | 4A |
