@@ -60,11 +60,25 @@ export function acrescimos(st) {
 }
 
 /**
- * Texto da solicitação, no formato definido pelo usuário.
- * modo 'completa'   → descrição, códigos com porte/percentual/valor, total, exames e CID
- * modo 'simples'    → descrição e lista "CÓDIGOS TUSS:" com código e descrição
+ * Linha de exibição de um CID: forma abreviada do catálogo externo
+ * (ex.: "S42.3 Frat da diafise do umero") quando disponível, ou o código
+ * mais a descrição completa do Manual como reserva.
+ * @param {object} data modelo devolvido por adaptar()
+ * @param {Map<string,string>|null} cid10Map código → descrição abreviada
+ * @param {string} c código do CID
  */
-export function texto(data, st, rows) {
+export function linhaCid(data, cid10Map, c) {
+  const abreviada = cid10Map && cid10Map.get(c);
+  return abreviada || c + ' - ' + (data.cid[c] || 'descrição não informada');
+}
+
+/**
+ * Texto da solicitação, no formato definido pelo usuário.
+ * modo 'completa'   → descrição, códigos com porte/valor, total, exames e CID (forma abreviada)
+ * modo 'simples'    → descrição e lista "CÓDIGOS TUSS:" com código e descrição
+ * @param {Map<string,string>|null} cid10Map código CID → descrição abreviada (ver cid10.js)
+ */
+export function texto(data, st, rows, cid10Map) {
   const procs = procedimentosDaSolicitacao(data, rows);
 
   if (st.exportModo === 'simples') {
@@ -86,8 +100,6 @@ export function texto(data, st, rows) {
   const cids = [...new Set(procs.flatMap((p) => p.cids))];
   t += 'Exames: ' + (exames.length ? exames.join('; ') : 'não informado') + '\n\n';
   t += 'CID:\n';
-  t += cids.length
-    ? cids.map((c) => '* ' + c + ' - ' + (data.cid[c] || 'descrição não informada')).join('\n')
-    : 'não informado';
+  t += cids.length ? cids.map((c) => '* ' + linhaCid(data, cid10Map, c)).join('\n') : 'não informado';
   return t;
 }

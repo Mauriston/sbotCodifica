@@ -5,7 +5,7 @@
    Arquivos"/"Enviar por…" como PDF; no desktop, "Salvar como PDF". */
 
 import { brl, esc } from './format.js';
-import { totais, procedimentosDaSolicitacao, acrescimos } from './solicitacao.js';
+import { totais, procedimentosDaSolicitacao, acrescimos, linhaCid } from './solicitacao.js';
 
 const dataLonga = () =>
   new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -41,14 +41,14 @@ function listaCodigos(rows) {
     .join('')}</ul>`;
 }
 
-function listaCids(data, cids) {
+function listaCids(data, cids, cid10Map) {
   return `<ul class="doc__body">${cids
-    .map((c) => `<li><strong>${esc(c)}</strong> - ${esc(data.cid[c] || 'descrição não informada')}</li>`)
+    .map((c) => `<li>${esc(linhaCid(data, cid10Map, c))}</li>`)
     .join('')}</ul>`;
 }
 
 /** Monta o documento imprimível a partir do estado atual. */
-export function montarDocumento(data, st, rows) {
+export function montarDocumento(data, st, rows, cid10Map) {
   const procs = procedimentosDaSolicitacao(data, rows);
   const simples = st.exportModo === 'simples';
   const extras = acrescimos(st);
@@ -86,7 +86,7 @@ export function montarDocumento(data, st, rows) {
 
       <div class="doc__section">
         <h2>CID-10</h2>
-        ${cids.length ? listaCids(data, cids) : '<div class="doc__body">não informado</div>'}
+        ${cids.length ? listaCids(data, cids, cid10Map) : '<div class="doc__body">não informado</div>'}
       </div>
 
       <div class="doc__foot">
@@ -102,11 +102,11 @@ export function montarDocumento(data, st, rows) {
 }
 
 /** Preenche #print-root e dispara a impressão. Devolve false se o navegador não suporta. */
-export function imprimir(data, st, rows) {
+export function imprimir(data, st, rows, cid10Map) {
   const alvo = document.getElementById('print-root');
   if (!alvo || typeof window.print !== 'function') return false;
 
-  alvo.innerHTML = montarDocumento(data, st, rows);
+  alvo.innerHTML = montarDocumento(data, st, rows, cid10Map);
   const tituloOriginal = document.title;
   document.title = 'Solicitacao-SBOT-' + new Date().toISOString().slice(0, 10);
 

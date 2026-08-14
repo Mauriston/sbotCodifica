@@ -9,6 +9,7 @@ import { carregarDados, buscar } from './data.js';
 import { persistido, salvar } from './store.js';
 import { linhas, totais, texto } from './solicitacao.js';
 import { imprimir } from './print.js';
+import { carregarCid10Abreviado } from './cid10.js';
 
 /* ---------------------------------------------------------------- estado -- */
 
@@ -55,6 +56,22 @@ const rowsAtuais = () => (st.data ? linhas(st.data, st) : []);
 
 function persistir() {
   salvar(st);
+}
+
+/* Descrições abreviadas do CID-10 (github.com/Mauriston/cid10), usadas na
+   solicitação. Buscadas uma vez e cacheadas; falha em silêncio — a
+   solicitação cai de volta na descrição completa do Manual. */
+let cid10Cache = null;
+
+async function garantirCid10() {
+  if (!cid10Cache) {
+    try {
+      cid10Cache = await carregarCid10Abreviado();
+    } catch {
+      /* mantém null — texto()/montarDocumento() usam a descrição do Manual como reserva */
+    }
+  }
+  return cid10Cache;
 }
 
 function toast(msg) {
@@ -592,7 +609,7 @@ function renderSheet() {
           <button class="modo ${simples ? '' : 'modo--on'}" type="button" data-act="modo-completa">Completa</button>
           <button class="modo ${simples ? 'modo--on' : ''}" type="button" data-act="modo-simples">Simplificada (sem valores)</button>
         </div>
-        <pre class="sheet__preview">${esc(texto(st.data, st, rows))}</pre>
+        <pre class="sheet__preview">${esc(texto(st.data, st, rows, cid10Cache))}</pre>
         <div class="sheet__acoes">
           <button class="sheet__btn sheet__btn--primary" type="button" data-act="copiar">Copiar texto</button>
           <button class="sheet__btn" type="button" data-act="pdf">Gerar PDF</button>
@@ -793,6 +810,12 @@ const ACOES = {
     if (!st.cesta.length) return;
     st.exportOpen = true;
     renderSheet();
+    if (!cid10Cache) {
+      // busca em segundo plano; atualiza a prévia se ainda estiver aberta quando terminar
+      garantirCid10().then(() => {
+        if (st.exportOpen) renderSheet();
+      });
+    }
   },
   'export-close': () => {
     st.exportOpen = false;
@@ -810,7 +833,7 @@ const ACOES = {
   },
 
   copiar: async () => {
-    const ok = await copiarTexto(texto(st.data, st, rowsAtuais()));
+    const ok = await copiarTexto(texto(st.data, st, rowsAtuais(), cid10Cache));
     st.exportOpen = false;
     renderSheet();
     toast(ok ? 'Texto copiado' : 'Não foi possível copiar');
@@ -819,11 +842,11 @@ const ACOES = {
     const rows = rowsAtuais();
     st.exportOpen = false;
     renderSheet();
-    const ok = imprimir(st.data, st, rows);
+    const ok = imprimir(st.data, st, rows, cid10Cache);
     if (!ok) toast('Impressão indisponível neste navegador');
   },
   compartilhar: async () => {
-    const t = texto(st.data, st, rowsAtuais());
+    const t = texto(st.data, st, rowsAtuais(), cid10Cache);
     st.exportOpen = false;
     renderSheet();
     if (navigator.share) {
@@ -933,6 +956,7 @@ async function iniciar() {
 }
 
 iniciar();
+garantirCid10(); // pré-busca em segundo plano; pronta quando o usuário chegar à solicitação
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
