@@ -469,7 +469,7 @@ function telaSolicitacao() {
     <div class="solic-head">
       <div class="solic-head__top">
         <div>
-          <div class="solic-head__title">Solicitação em montagem</div>
+          <div class="solic-head__title">Solicitação Cirúrgica</div>
           <div class="solic-head__sub">${esc(subtitulo)}</div>
         </div>
         ${
@@ -507,7 +507,6 @@ function telaSolicitacao() {
       return `
       <div class="solic-card">
         <div class="solic-card__row">
-          <span class="pct ${classePct}">${esc(r.pct)}</span>
           <div class="solic-card__body">
             <div class="solic-card__cod">${esc(r.codigo)}</div>
             <div class="solic-card__desc">${esc(r.desc || '—')}</div>
@@ -525,6 +524,7 @@ function telaSolicitacao() {
           <div class="solic-card__vals">
             <div class="solic-card__final">${esc(brl(r.final))}</div>
             ${r.fator === 1 ? '' : `<div class="solic-card__cheio">${esc(brl(r.bruto))}</div>`}
+            <span class="pct ${classePct}">${esc(r.pct)}</span>
             <button class="solic-card__remove" type="button" data-act="remove" data-key="${esc(r.key)}">remover</button>
           </div>
         </div>

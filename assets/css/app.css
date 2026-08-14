@@ -671,10 +671,17 @@ a { color: var(--blue-600); }
   font-weight: 600;
   margin-top: 8px;
 }
-.solic-card__vals { text-align: right; flex-shrink: 0; }
+.solic-card__vals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  text-align: right;
+  flex-shrink: 0;
+}
 .solic-card__final { font-family: var(--font-display); font-weight: 700; font-size: 13.5px; }
 .solic-card__cheio { font-size: 10.5px; color: var(--muted); text-decoration: line-through; }
-.solic-card__remove { font-size: 11px; color: var(--orange); margin-top: 6px; }
+.solic-card__remove { font-size: 11px; color: var(--orange); }
 
 .totais { background: var(--white); border-radius: 14px; padding: 16px; margin-top: 4px; }
 .totais__total {
