@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SBOT Codifica — Códigos TUSS/CBHPM</title>
+<meta name="description" content="Consulta dos procedimentos do Manual de Codificação da SBOT: códigos TUSS/CBHPM, CID-10 cabíveis, exames para autorização e valores por porte cirúrgico.">
+<meta name="theme-color" content="#2F9C8C">
+<meta name="color-scheme" content="light">
+
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./assets/icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SBOT Codifica">
+
+<meta property="og:title" content="SBOT Codifica">
+<meta property="og:description" content="Códigos TUSS/CBHPM, CID-10 e exames por procedimento ortopédico — Manual de Codificação da SBOT.">
+<meta property="og:type" content="website">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/css/app.css">
+</head>
+<body>
+
+<div id="app" class="app">
+
+  <!-- ============ APP BAR ============ -->
+  <header class="appbar">
+    <div class="appbar__brand">
+      <div class="mark" aria-hidden="true"></div>
+      <div class="appbar__titles">
+        <div class="appbar__name">SBOT Codifica</div>
+        <div class="appbar__sub" id="bar-subtitle">carregando manual…</div>
+      </div>
+    </div>
+    <button class="appbar__favs" type="button" data-act="go-salvos" aria-label="Abrir salvos">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1E8C7C" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z"></path></svg>
+      <span id="fav-count">0</span>
+    </button>
+  </header>
+
+  <!-- ============ SCROLL AREA ============ -->
+  <main class="scroll" id="scroll">
+
+    <!-- barra de busca: nó persistente, nunca re-renderizado (preserva foco/teclado) -->
+    <div class="searchwrap" id="searchwrap" hidden>
+      <div class="search">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7680" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+        <input id="search-input" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+               placeholder="Procedimento, código TUSS ou CID" aria-label="Buscar procedimento, código TUSS ou CID">
+        <button class="search__clear" id="search-clear" type="button" hidden aria-label="Limpar busca">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#6B7680" stroke-width="3" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="screen"></div>
+  </main>
+
+  <!-- ============ BARRA INFERIOR DO PROCEDIMENTO ============ -->
+  <div id="procbar"></div>
+
+  <!-- ============ TAB BAR ============ -->
+  <nav class="tabbar" aria-label="Navegação principal">
+    <button class="tab" type="button" data-act="go-home" id="tab-home">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+      <span>Buscar</span>
+    </button>
+    <button class="tab" type="button" data-act="go-cesta" id="tab-cesta">
+      <span class="tab__icon">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v4h4M10 12h6M10 16h4"></path></svg>
+        <span class="tab__badge" id="tab-badge" hidden>0</span>
+      </span>
+      <span>Solicitação</span>
+    </button>
+    <button class="tab" type="button" data-act="go-salvos" id="tab-salvos">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z"></path></svg>
+      <span>Salvos</span>
+    </button>
+  </nav>
+
+  <!-- ============ SHEET DE EXPORTAÇÃO ============ -->
+  <div id="sheet"></div>
+
+  <!-- ============ TOAST ============ -->
+  <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+</div>
+
+<!-- documento usado só na impressão / geração de PDF -->
+<div id="print-root" aria-hidden="true"></div>
+
+<script type="module" src="./assets/js/app.js"></script>
+<noscript>
+  <p style="font-family:sans-serif;padding:24px;text-align:center">
+    O SBOT Codifica precisa de JavaScript habilitado.
+    O Manual completo em PDF continua disponível em
+    <a href="https://defesa.sbot.org.br/assets/file/Manual-SBOT-27-11-25.pdf">defesa.sbot.org.br</a>.
+  </p>
+</noscript>
+</body>
+</html>

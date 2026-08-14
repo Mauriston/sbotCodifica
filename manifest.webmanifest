@@ -1,0 +1,17 @@
+{
+  "name": "SBOT Codifica — Manual de Codificação SBOT",
+  "short_name": "SBOT Codifica",
+  "description": "Consulta de procedimentos, códigos TUSS/CBHPM, CID-10 e exames do Manual de Codificação da SBOT.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EDEFF0",
+  "theme_color": "#2F9C8C",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "./assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
