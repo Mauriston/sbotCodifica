@@ -3,7 +3,7 @@
 Índice de capítulos e procedimentos (gerado automaticamente a partir do PDF).
 
 
-## 1 – PATOLOGIAS DA COLUNA VERTEBRAL
+## [1 – PATOLOGIAS DA COLUNA VERTEBRAL](https://github.com/Mauriston/sbotCodifica/blob/main/docs/01_1-patologias-da-coluna-vertebral.md)
 
 - **1.1** — CONSULTA GERAL DE COLUNA VERTEBRAL (p. 26)
 - **1.2** — CONSULTA: FRATURA DE COLUNA VERTEBRAL (p. 26)
