@@ -5,14 +5,19 @@
    - cada código seguinte recebe 50% (mesma via de acesso do principal)
      ou 70% quando executado por via de acesso diferente;
    - urgência multiplica o porte por 1,3 e apartamento por 2, antes da
-     regra de via de acesso. Os dois acréscimos podem ser combinados. */
+     regra de via de acesso. Os dois acréscimos podem ser combinados.
+
+   Só entram na solicitação gerada os itens explicitamente selecionados
+   pelo usuário — códigos TUSS (st.cesta), OPME (st.opme), exames
+   (st.exames) e CID (st.cids) —, cada um guardado só como referência
+   (procId + idx/código), nunca uma cópia do texto do catálogo. */
 
 import { brl } from './format.js';
 
 /**
  * Monta as linhas da solicitação já ordenadas e com percentual aplicado.
  * @param {object} data modelo devolvido por adaptar()
- * @param {object} st   estado do app
+ * @param {object} st   estado do app (ou snapshot de uma solicitação salva)
  * @returns {Array<{key,procId,codigo,porte,via,principal,fator,bruto,final,desc,pct}>}
  */
 export function linhas(data, st) {
@@ -45,9 +50,9 @@ export function totais(rows) {
   return { somaCheia, total, reducao: somaCheia - total };
 }
 
-/** Procedimentos representados na solicitação (códigos e/ou OPME), na ordem em que aparecem. */
-export function procedimentosDaSolicitacao(data, rows, opmeRows = []) {
-  const ids = [...new Set([...rows.map((r) => r.procId), ...opmeRows.map((o) => o.procId)])];
+/** Procedimentos representados na solicitação, a partir de uma lista (já combinada) de IDs. */
+export function procedimentosDaSolicitacao(data, procIds) {
+  const ids = [...new Set(procIds)];
   return ids.map((id) => data.proc(id)).filter(Boolean);
 }
 
@@ -61,6 +66,17 @@ export function linhasOpme(data, st) {
       const p = data.proc(o.procId);
       const item = p && p.opme[o.idx];
       return item ? { key: o.key, procId: o.procId, ...item } : null;
+    })
+    .filter(Boolean);
+}
+
+/** Linhas de exames selecionados, resolvidas a partir do catálogo (procId + idx). */
+export function linhasExame(data, st) {
+  return st.exames
+    .map((e) => {
+      const p = data.proc(e.procId);
+      const texto = p && p.exames[e.idx];
+      return texto ? { key: e.key, procId: e.procId, texto } : null;
     })
     .filter(Boolean);
 }
@@ -86,6 +102,17 @@ export function linhaCid(data, cid10Map, c) {
   return abreviada || c + ' - ' + (data.cid[c] || 'descrição não informada');
 }
 
+/** Linhas de CID selecionados, com a forma abreviada já resolvida (procId + idx → código). */
+export function linhasCid(data, st, cid10Map) {
+  return st.cids
+    .map((c) => {
+      const p = data.proc(c.procId);
+      const codigo = p && p.cids[c.idx];
+      return codigo ? { key: c.key, procId: c.procId, codigo, abreviado: linhaCid(data, cid10Map, codigo) } : null;
+    })
+    .filter(Boolean);
+}
+
 /** Linha de exibição de um item OPME: "2x PARAFUSO CORTICAL" ou só o nome quando sem quantidade. */
 export function linhaOpme(o) {
   const nome = (o.grupo ? o.grupo + ' — ' : '') + o.item;
@@ -94,13 +121,21 @@ export function linhaOpme(o) {
 
 /**
  * Texto da solicitação, no formato definido pelo usuário.
- * modo 'completa'   → descrição, códigos com porte/valor, total, exames, CID (forma abreviada) e OPME
+ * modo 'completa'   → descrição, códigos com porte/valor, total, exames, CID (forma abreviada) e OPME selecionados
  * modo 'simples'    → descrição e lista "CÓDIGOS TUSS:" com código e descrição
- * @param {Map<string,string>|null} cid10Map código CID → descrição abreviada (ver cid10.js)
- * @param {Array} opmeRows itens OPME selecionados (ver linhasOpme)
+ * @param {object} data modelo devolvido por adaptar()
+ * @param {object} st   estado (ou snapshot salvo) — usa st.exportModo, st.ano, st.urgencia, st.apartamento
+ * @param {{rows: Array, opmeRows?: Array, examesRows?: Array, cidsRows?: Array}} ctx
  */
-export function texto(data, st, rows, cid10Map, opmeRows = []) {
-  const procs = procedimentosDaSolicitacao(data, rows, opmeRows);
+export function texto(data, st, ctx) {
+  const { rows, opmeRows = [], examesRows = [], cidsRows = [] } = ctx;
+  const procIds = [
+    ...rows.map((r) => r.procId),
+    ...opmeRows.map((o) => o.procId),
+    ...examesRows.map((e) => e.procId),
+    ...cidsRows.map((c) => c.procId)
+  ];
+  const procs = procedimentosDaSolicitacao(data, procIds);
 
   if (st.exportModo === 'simples') {
     let s = procs.map((p) => p.nome).join('\n') + '\n\nCÓDIGOS TUSS:\n';
@@ -119,11 +154,9 @@ export function texto(data, st, rows, cid10Map, opmeRows = []) {
     t += '------\n\n';
   }
 
-  const exames = [...new Set(procs.flatMap((p) => p.exames))];
-  const cids = [...new Set(procs.flatMap((p) => p.cids))];
-  t += 'Exames: ' + (exames.length ? exames.join('; ') : 'não informado') + '\n\n';
+  t += 'Exames: ' + (examesRows.length ? examesRows.map((e) => e.texto).join('; ') : 'não informado') + '\n\n';
   t += 'CID:\n';
-  t += (cids.length ? cids.map((c) => '* ' + linhaCid(data, cid10Map, c)).join('\n') : 'não informado') + '\n\n';
+  t += (cidsRows.length ? cidsRows.map((c) => '* ' + c.abreviado).join('\n') : 'não informado') + '\n\n';
   t += 'OPME:\n';
   t += opmeRows.length ? opmeRows.map((o) => '* ' + linhaOpme(o)).join('\n') : 'não informado';
   return t;

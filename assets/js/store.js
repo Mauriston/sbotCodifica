@@ -6,7 +6,10 @@ const CHAVE = 'sbot-codifica:v1';
 
 const PADRAO = {
   cesta: [],          // [{ key, procId, codigo, porte, via: 'mesma'|'outra' }]
-  opme: [],           // [{ key, procId, idx, grupo, item, quantidade }] itens OPME selecionados
+  opme: [],           // [{ key, procId, idx }] itens OPME selecionados (resolvidos via data.proc)
+  exames: [],         // [{ key, procId, idx }] exames selecionados
+  cids: [],           // [{ key, procId, idx }] CID selecionados
+  solicitacoes: [],   // [{ id, criadoEm, ano, urgencia, apartamento, cesta, opme, exames, cids }] geradas
   favs: [],           // [procId]
   hist: [],           // [procId] — mais recente primeiro, até 8
   ano: null,          // ano da tabela CBHPM escolhido

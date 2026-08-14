@@ -7,7 +7,7 @@
 import { brl, esc, carCores, carCurto, sigla, nomeCurto, MANUAL_PDF } from './format.js';
 import { carregarDados, buscar } from './data.js';
 import { persistido, salvar } from './store.js';
-import { linhas, linhasOpme, totais, texto } from './solicitacao.js';
+import { linhas, linhasOpme, linhasExame, linhasCid, linhaCid, totais, texto } from './solicitacao.js';
 import { imprimir } from './print.js';
 import { carregarCid10Abreviado } from './cid10.js';
 
@@ -20,10 +20,9 @@ const st = {
   query: '',
   esp: null,
   procId: null,
-  cidSel: null,
   cidExp: false,
   opmeExp: false,
-  exportOpen: false,
+  solicVerId: null,
   ...persistido
 };
 
@@ -37,7 +36,6 @@ const el = {
   favCount: document.getElementById('fav-count'),
   procbar: document.getElementById('procbar'),
   tabBadge: document.getElementById('tab-badge'),
-  sheet: document.getElementById('sheet'),
   toast: document.getElementById('toast'),
   tabbar: document.getElementById('tabbar'),
   tabs: {
@@ -55,6 +53,8 @@ let toastTimer = null;
 const proc = (id) => (st.data ? st.data.proc(id) : null);
 const rowsAtuais = () => (st.data ? linhas(st.data, st) : []);
 const rowsOpmeAtuais = () => (st.data ? linhasOpme(st.data, st) : []);
+const rowsExamesAtuais = () => (st.data ? linhasExame(st.data, st) : []);
+const rowsCidsAtuais = () => (st.data ? linhasCid(st.data, st, cid10Cache) : []);
 
 function persistir() {
   salvar(st);
@@ -91,6 +91,8 @@ function rotaDoEstado() {
   if (st.screen === 'esp') return '#/esp/' + encodeURIComponent(st.esp || '');
   if (st.screen === 'proc') return '#/proc/' + encodeURIComponent(st.procId || '');
   if (st.screen === 'cesta') return '#/solicitacao';
+  if (st.screen === 'solicitacao-detalhe') return '#/solicitacoes/' + encodeURIComponent(st.solicVerId || '');
+  if (st.screen === 'solicitacoes') return '#/solicitacoes';
   if (st.screen === 'salvos') return '#/salvos';
   return '#/';
 }
@@ -125,10 +127,14 @@ function aplicarRota() {
     const id = decodeURIComponent(param);
     st.screen = 'proc';
     st.procId = id;
-    st.cidSel = null;
     st.cidExp = false;
     st.opmeExp = false;
     registrarHistorico(id);
+  } else if (secao === 'solicitacoes' && param) {
+    st.screen = 'solicitacao-detalhe';
+    st.solicVerId = decodeURIComponent(param);
+  } else if (secao === 'solicitacoes') {
+    st.screen = 'solicitacoes';
   } else if (secao === 'solicitacao') {
     st.screen = 'cesta';
   } else if (secao === 'salvos') {
@@ -138,7 +144,6 @@ function aplicarRota() {
   }
 
   rotaAtual = hash;
-  st.exportOpen = false;
   render();
 
   // home e listas de especialidade voltam onde o usuário parou
@@ -251,6 +256,64 @@ function alternarOpme(procId, idx) {
   const existe = st.opme.some((o) => o.key === key);
   st.opme = existe ? st.opme.filter((o) => o.key !== key) : st.opme.concat([{ key, procId, idx }]);
   persistir();
+}
+
+function alternarExame(procId, idx) {
+  const key = procId + '|exame|' + idx;
+  const existe = st.exames.some((e) => e.key === key);
+  st.exames = existe ? st.exames.filter((e) => e.key !== key) : st.exames.concat([{ key, procId, idx }]);
+  persistir();
+}
+
+function alternarCid(procId, idx) {
+  const key = procId + '|cid|' + idx;
+  const existe = st.cids.some((c) => c.key === key);
+  st.cids = existe ? st.cids.filter((c) => c.key !== key) : st.cids.concat([{ key, procId, idx }]);
+  persistir();
+}
+
+/** Gera uma solicitação a partir da seleção atual, salva no histórico e limpa o builder. */
+function gerarSolicitacao() {
+  if (!st.cesta.length && !st.opme.length && !st.exames.length && !st.cids.length) return;
+  const id = 'sol_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const registro = {
+    id,
+    criadoEm: Date.now(),
+    ano: st.ano,
+    urgencia: !!st.urgencia,
+    apartamento: !!st.apartamento,
+    cesta: st.cesta,
+    opme: st.opme,
+    exames: st.exames,
+    cids: st.cids
+  };
+  st.solicitacoes = [registro].concat(st.solicitacoes);
+  st.cesta = [];
+  st.opme = [];
+  st.exames = [];
+  st.cids = [];
+  persistir();
+  navegar('#/solicitacoes/' + encodeURIComponent(id));
+}
+
+/** Estado no formato usado por linhas()/texto(), a partir de uma solicitação salva. */
+function stDoRegistro(registro) {
+  return { ...registro, exportModo: st.exportModo };
+}
+
+/** Resolve as linhas (códigos/OPME/exames/CID) de uma solicitação salva. */
+function registroLinhas(registro) {
+  const stRegistro = stDoRegistro(registro);
+  return {
+    rows: linhas(st.data, stRegistro),
+    opmeRows: linhasOpme(st.data, stRegistro),
+    examesRows: linhasExame(st.data, stRegistro),
+    cidsRows: linhasCid(st.data, stRegistro, cid10Cache)
+  };
+}
+
+function registroPorId(id) {
+  return st.solicitacoes.find((r) => r.id === id) || null;
 }
 
 /* ---------------------------------------------------------------- partes -- */
@@ -472,21 +535,20 @@ function telaProcedimento() {
     })
     .join('');
 
-  const cidsMostrar = st.cidExp ? p.cids : p.cids.slice(0, 12);
-  const chipsCid = cidsMostrar
-    .map(
-      (c) => `
-      <button class="cid-chip ${st.cidSel === c ? 'cid-chip--on' : ''}" type="button"
-              data-act="cid" data-cod="${esc(c)}" title="${esc(st.data.cid[c] || '')}">${esc(c)}</button>`
-    )
+  const cidsSelecionados = new Set(st.cids.filter((c) => c.procId === p.id).map((c) => c.idx));
+  const cidsComIdx = p.cids.map((codigo, idx) => ({ codigo, idx }));
+  const cidsMostrar = st.cidExp ? cidsComIdx : cidsComIdx.slice(0, 12);
+  const itensCid = cidsMostrar
+    .map(({ codigo, idx }) => {
+      const on = cidsSelecionados.has(idx);
+      return `
+      <button class="opme-item ${on ? 'opme-item--on' : ''}" type="button" aria-pressed="${on}"
+              data-act="toggle-cid" data-id="${esc(p.id)}" data-idx="${idx}">
+        <span class="opme-item__check">${iconeCheck(9)}</span>
+        <span class="opme-item__nome">${esc(linhaCid(st.data, cid10Cache, codigo))}</span>
+      </button>`;
+    })
     .join('');
-
-  const detalheCid = st.cidSel
-    ? `<div class="cids__detail">
-         <div class="cids__detail-cod">${esc(st.cidSel)}</div>
-         <div class="cids__detail-desc">${esc(st.data.cid[st.cidSel] || '')}</div>
-       </div>`
-    : '';
 
   const maisCids =
     p.cids.length > 12
@@ -495,11 +557,18 @@ function telaProcedimento() {
         }</button>`
       : '';
 
+  const examesSelecionados = new Set(st.exames.filter((e) => e.procId === p.id).map((e) => e.idx));
   const exames = p.exames.length
     ? p.exames
-        .map(
-          (x) => `<div class="exame"><span class="exame__dot"></span><span>${esc(x)}</span></div>`
-        )
+        .map((texto, idx) => {
+          const on = examesSelecionados.has(idx);
+          return `
+          <button class="opme-item ${on ? 'opme-item--on' : ''}" type="button" aria-pressed="${on}"
+                  data-act="toggle-exame" data-id="${esc(p.id)}" data-idx="${idx}">
+            <span class="opme-item__check">${iconeCheck(9)}</span>
+            <span class="opme-item__nome">${esc(texto)}</span>
+          </button>`;
+        })
         .join('')
     : `<div class="exames__vazio">Não informado no Manual.</div>`;
 
@@ -560,17 +629,22 @@ function telaProcedimento() {
     <div class="cids">
       <div class="section-head">
         <span class="section-title">CID-10 cabíveis</span>
-        <span class="muted" style="font-size:12px">${p.cids.length}</span>
+        <span style="display:flex;align-items:baseline;gap:10px">
+          <span class="muted" style="font-size:12px">${p.cids.length}</span>
+          ${p.cids.length ? `<button class="link-action" type="button" data-act="cid-all">Selecionar todos</button>` : ''}
+        </span>
       </div>
       <div class="cids__box">
-        ${p.cids.length ? `<div class="cids__chips">${chipsCid}</div>` : '<div class="muted" style="font-size:13px">Não informado no Manual.</div>'}
-        ${detalheCid}
+        ${p.cids.length ? itensCid : '<div class="muted" style="font-size:13px">Não informado no Manual.</div>'}
         ${maisCids}
       </div>
     </div>
 
     <div class="exames">
-      <div class="exames__title">Exames para autorização</div>
+      <div class="section-head">
+        <span class="section-title">Exames para autorização</span>
+        ${p.exames.length ? `<button class="link-action" type="button" data-act="exame-all">Selecionar todos</button>` : ''}
+      </div>
       <div class="exames__box">${exames}</div>
     </div>
 
@@ -589,10 +663,19 @@ function telaProcedimento() {
 function telaSolicitacao() {
   const rows = rowsAtuais();
   const opmeRows = rowsOpmeAtuais();
+  const examesRows = rowsExamesAtuais();
+  const cidsRows = rowsCidsAtuais();
   const { total } = totais(rows);
-  const temItens = rows.length > 0 || opmeRows.length > 0;
+  const temItens = rows.length > 0 || opmeRows.length > 0 || examesRows.length > 0 || cidsRows.length > 0;
 
-  const procsNomes = [...new Set([...st.cesta.map((c) => c.procId), ...st.opme.map((o) => o.procId)])]
+  const procsNomes = [
+    ...new Set([
+      ...st.cesta.map((c) => c.procId),
+      ...st.opme.map((o) => o.procId),
+      ...st.exames.map((e) => e.procId),
+      ...st.cids.map((c) => c.procId)
+    ])
+  ]
     .map((id) => proc(id))
     .filter(Boolean)
     .map((p) => p.nome)
@@ -624,6 +707,7 @@ function telaSolicitacao() {
             : ''
         }
       </div>
+      <button class="link-action" type="button" data-act="abrir-solicitacoes" style="margin-top:8px;display:inline-block">Solicitações anteriores (${st.solicitacoes.length})</button>
       <div class="pills">
         <button class="pill pill--urg" type="button" data-act="urg" aria-pressed="${!!st.urgencia}">Urgência · +30%</button>
         <button class="pill pill--apto" type="button" data-act="apto" aria-pressed="${!!st.apartamento}">Apartamento · ×2</button>
@@ -638,7 +722,7 @@ function telaSolicitacao() {
          <div style="width:56px;height:56px;border-radius:999px;background:#E4E6E7;margin:0 auto 16px;display:flex;align-items:center;justify-content:center">
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7680" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v4h4M10 12h6M10 16h4"></path></svg>
          </div>
-         Nenhum código ou OPME selecionado. Abra um procedimento e marque o que vai na solicitação.
+         Nenhum código, OPME, exame ou CID selecionado. Abra um procedimento e marque o que vai na solicitação.
        </div>`
     );
   }
@@ -701,6 +785,56 @@ function telaSolicitacao() {
     </div>`
     : '';
 
+  const examesSecao = examesRows.length
+    ? `
+    <div class="opme">
+      <div class="section-head">
+        <span class="section-title">Exames selecionados</span>
+        <span class="muted" style="font-size:12px">${examesRows.length}</span>
+      </div>
+      <div class="opme-box">
+        ${examesRows
+          .map((e) => {
+            const p = proc(e.procId);
+            return `
+            <div class="opme-sel">
+              <div class="opme-sel__body">
+                <div class="opme-sel__nome">${esc(e.texto)}</div>
+                <div class="opme-sel__origem">${esc(p ? p.nome : '')}</div>
+              </div>
+              <button class="solic-card__remove" type="button" data-act="remove-exame" data-key="${esc(e.key)}">remover</button>
+            </div>`;
+          })
+          .join('')}
+      </div>
+    </div>`
+    : '';
+
+  const cidsSecao = cidsRows.length
+    ? `
+    <div class="opme">
+      <div class="section-head">
+        <span class="section-title">CID selecionados</span>
+        <span class="muted" style="font-size:12px">${cidsRows.length}</span>
+      </div>
+      <div class="opme-box">
+        ${cidsRows
+          .map((c) => {
+            const p = proc(c.procId);
+            return `
+            <div class="opme-sel">
+              <div class="opme-sel__body">
+                <div class="opme-sel__nome">${esc(c.abreviado)}</div>
+                <div class="opme-sel__origem">${esc(p ? p.nome : '')}</div>
+              </div>
+              <button class="solic-card__remove" type="button" data-act="remove-cid" data-key="${esc(c.key)}">remover</button>
+            </div>`;
+          })
+          .join('')}
+      </div>
+    </div>`
+    : '';
+
   const totaisSecao = rows.length
     ? `
       <div class="totais">
@@ -716,6 +850,8 @@ function telaSolicitacao() {
     `<div class="solic-list">
       ${cards}
       ${opmeSecao}
+      ${examesSecao}
+      ${cidsSecao}
       ${totaisSecao}
       <button class="btn-primary btn-primary--block" type="button" data-act="export-open">Gerar solicitação</button>
     </div>`
@@ -752,39 +888,113 @@ function telaSalvos() {
     </div>`;
 }
 
-/* ------------------------------------------------------------------ sheet -- */
+const formatarData = (ts) =>
+  new Date(ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-function renderSheet() {
-  if (!st.exportOpen || !st.data) {
-    el.sheet.innerHTML = '';
-    return;
+function telaSolicitacoes() {
+  const lista = st.solicitacoes;
+
+  const cards = lista
+    .map((registro) => {
+      const { rows, opmeRows, examesRows, cidsRows } = registroLinhas(registro);
+      const procIds = [
+        ...new Set([
+          ...rows.map((r) => r.procId),
+          ...opmeRows.map((o) => o.procId),
+          ...examesRows.map((e) => e.procId),
+          ...cidsRows.map((c) => c.procId)
+        ])
+      ];
+      const nomes =
+        procIds
+          .map((id) => proc(id))
+          .filter(Boolean)
+          .map((p) => nomeCurto(p.nome))
+          .join(' + ') || 'Solicitação';
+
+      const partes = [];
+      if (rows.length) partes.push(rows.length + ' código' + (rows.length === 1 ? '' : 's'));
+      if (opmeRows.length) partes.push(opmeRows.length + ' OPME');
+      if (examesRows.length) partes.push(examesRows.length + ' exame' + (examesRows.length === 1 ? '' : 's'));
+      if (cidsRows.length) partes.push(cidsRows.length + ' CID');
+      const { total } = totais(rows);
+      const meta = partes.join(' · ') + (rows.length ? ' · ' + brl(total) : '');
+
+      return `
+      <button class="card card--tap" type="button" data-act="abrir-solicitacao" data-id="${esc(registro.id)}">
+        <div class="salvo__nome">${esc(nomes)}</div>
+        <div class="salvo__meta">${esc(formatarData(registro.criadoEm))}${meta ? ' · ' + esc(meta) : ''}</div>
+      </button>`;
+    })
+    .join('');
+
+  return `
+    <div class="subhead">
+      <button class="subhead__back" type="button" data-act="voltar" aria-label="Voltar">${iconeVoltar()}</button>
+      <div style="min-width:0">
+        <div class="subhead__title">Solicitações</div>
+        <div class="subhead__meta">${lista.length} geradas</div>
+      </div>
+    </div>
+    <div class="stack gap-9" style="padding:14px 18px 24px">
+      ${lista.length ? cards : `<div class="empty" style="padding:50px 20px">Nenhuma solicitação gerada ainda.</div>`}
+    </div>`;
+}
+
+function telaSolicitacaoDetalhe() {
+  const registro = registroPorId(st.solicVerId);
+  if (!registro) {
+    return `
+      <div class="subhead">
+        <button class="subhead__back" type="button" data-act="voltar" aria-label="Voltar">${iconeVoltar()}</button>
+        <div class="subhead__title">Solicitação</div>
+      </div>
+      <div class="empty" style="padding:60px 34px">Solicitação não encontrada.</div>`;
   }
 
-  const rows = rowsAtuais();
-  const opmeRows = rowsOpmeAtuais();
-  const { total } = totais(rows);
+  const ctx = registroLinhas(registro);
+  const { rows, opmeRows, examesRows, cidsRows } = ctx;
+  const procIds = [
+    ...new Set([
+      ...rows.map((r) => r.procId),
+      ...opmeRows.map((o) => o.procId),
+      ...examesRows.map((e) => e.procId),
+      ...cidsRows.map((c) => c.procId)
+    ])
+  ];
+  const nomes =
+    procIds
+      .map((id) => proc(id))
+      .filter(Boolean)
+      .map((p) => p.nome)
+      .join(' + ') || 'Solicitação';
+
   const simples = st.exportModo === 'simples';
+  const { total } = totais(rows);
   const resumo = simples
     ? rows.length + ' códigos · sem valores'
     : rows.length + ' códigos' + (opmeRows.length ? ' · ' + opmeRows.length + ' OPME' : '') + ' · total ' + brl(total);
 
-  el.sheet.innerHTML = `
-    <div class="sheet-overlay" data-act="export-close" role="dialog" aria-modal="true" aria-label="Solicitação pronta">
-      <div class="sheet" data-stop>
-        <div class="sheet__grip"></div>
-        <div class="sheet__title">Solicitação pronta</div>
-        <div class="sheet__resumo">${esc(resumo)}</div>
-        <div class="sheet__modos">
-          <button class="modo ${simples ? '' : 'modo--on'}" type="button" data-act="modo-completa">Completa</button>
-          <button class="modo ${simples ? 'modo--on' : ''}" type="button" data-act="modo-simples">Simplificada (sem valores)</button>
-        </div>
-        <pre class="sheet__preview">${esc(texto(st.data, st, rows, cid10Cache, opmeRows))}</pre>
-        <div class="sheet__acoes">
-          <button class="sheet__btn sheet__btn--primary" type="button" data-act="copiar">Copiar texto</button>
-          <button class="sheet__btn" type="button" data-act="pdf">Gerar PDF</button>
-          <button class="sheet__btn" type="button" data-act="compartilhar">Compartilhar</button>
-          <button class="sheet__btn sheet__btn--ghost" type="button" data-act="export-close">Fechar</button>
-        </div>
+  return `
+    <div class="prochead">
+      <div class="prochead__bar">
+        <button class="subhead__back" type="button" data-act="voltar" aria-label="Voltar">${iconeVoltar()}</button>
+      </div>
+      <h1 class="prochead__nome">${esc(nomes)}</h1>
+      <div class="prochead__ind">${esc(formatarData(registro.criadoEm))}</div>
+    </div>
+    <div class="pad">
+      <div class="sheet__resumo">${esc(resumo)}</div>
+      <div class="sheet__modos">
+        <button class="modo ${simples ? '' : 'modo--on'}" type="button" data-act="modo-completa">Completa</button>
+        <button class="modo ${simples ? 'modo--on' : ''}" type="button" data-act="modo-simples">Simplificada (sem valores)</button>
+      </div>
+      <pre class="sheet__preview">${esc(texto(st.data, stDoRegistro(registro), ctx))}</pre>
+      <div class="sheet__acoes">
+        <button class="sheet__btn sheet__btn--primary" type="button" data-act="copiar">Copiar texto</button>
+        <button class="sheet__btn" type="button" data-act="pdf">Gerar PDF</button>
+        <button class="sheet__btn" type="button" data-act="compartilhar">Compartilhar</button>
+        <button class="sheet__btn sheet__btn--ghost" type="button" data-act="excluir-solicitacao" data-id="${esc(registro.id)}">Excluir</button>
       </div>
     </div>`;
 }
@@ -801,7 +1011,10 @@ function renderProcbar() {
   const rows = rowsAtuais();
   const doProc = rows.filter((r) => r.procId === st.procId);
   const opmeDoProc = rowsOpmeAtuais().filter((o) => o.procId === st.procId);
-  if (!doProc.length && !opmeDoProc.length) {
+  const examesDoProc = rowsExamesAtuais().filter((e) => e.procId === st.procId);
+  const cidsDoProc = rowsCidsAtuais().filter((c) => c.procId === st.procId);
+  const qtdTotal = doProc.length + opmeDoProc.length + examesDoProc.length + cidsDoProc.length;
+  if (!qtdTotal) {
     el.procbar.innerHTML = '';
     return;
   }
@@ -810,7 +1023,9 @@ function renderProcbar() {
   const partes = [];
   if (doProc.length) partes.push(doProc.length + ' código' + (doProc.length === 1 ? '' : 's'));
   if (opmeDoProc.length) partes.push(opmeDoProc.length + ' OPME');
-  const rotulo = partes.join(' · ') + ' selecionado' + (doProc.length + opmeDoProc.length === 1 ? '' : 's');
+  if (examesDoProc.length) partes.push(examesDoProc.length + ' exame' + (examesDoProc.length === 1 ? '' : 's'));
+  if (cidsDoProc.length) partes.push(cidsDoProc.length + ' CID');
+  const rotulo = partes.join(' · ') + ' selecionado' + (qtdTotal === 1 ? '' : 's');
 
   el.procbar.innerHTML = `
     <div class="procbar">
@@ -832,11 +1047,15 @@ function renderCasca() {
   el.favCount.textContent = st.favs.length;
 
   el.tabs.home.classList.toggle('tab--on', st.screen === 'home' || st.screen === 'esp' || st.screen === 'proc');
-  el.tabs.cesta.classList.toggle('tab--on', st.screen === 'cesta');
+  el.tabs.cesta.classList.toggle(
+    'tab--on',
+    st.screen === 'cesta' || st.screen === 'solicitacoes' || st.screen === 'solicitacao-detalhe'
+  );
   el.tabs.salvos.classList.toggle('tab--on', st.screen === 'salvos');
 
-  el.tabBadge.hidden = st.cesta.length === 0;
-  el.tabBadge.textContent = st.cesta.length;
+  const pendentes = st.cesta.length + st.opme.length + st.exames.length + st.cids.length;
+  el.tabBadge.hidden = pendentes === 0;
+  el.tabBadge.textContent = pendentes;
 
   el.searchwrap.hidden = !(st.screen === 'home' && st.data);
   el.clear.hidden = st.query.trim().length === 0;
@@ -850,11 +1069,12 @@ function render() {
   else if (st.screen === 'esp') el.screen.innerHTML = telaEspecialidade();
   else if (st.screen === 'proc') el.screen.innerHTML = telaProcedimento();
   else if (st.screen === 'cesta') el.screen.innerHTML = telaSolicitacao();
+  else if (st.screen === 'solicitacoes') el.screen.innerHTML = telaSolicitacoes();
+  else if (st.screen === 'solicitacao-detalhe') el.screen.innerHTML = telaSolicitacaoDetalhe();
   else if (st.screen === 'salvos') el.screen.innerHTML = telaSalvos();
   else el.screen.innerHTML = telaHome();
 
   renderProcbar();
-  renderSheet();
 }
 
 /** Re-renderiza apenas a tela atual (sem mexer no scroll nem no campo de busca). */
@@ -925,12 +1145,30 @@ const ACOES = {
     atualizar();
     toast(tinha ? 'Removido dos favoritos' : 'Salvo nos favoritos');
   },
-  cid: (ds) => {
-    st.cidSel = st.cidSel === ds.cod ? null : ds.cod;
-    atualizar();
-  },
   'cid-more': () => {
     st.cidExp = !st.cidExp;
+    atualizar();
+  },
+  'cid-all': () => {
+    const p = proc(st.procId);
+    if (!p) return;
+    const jaTem = new Set(st.cids.filter((c) => c.procId === p.id).map((c) => c.idx));
+    const novos = p.cids
+      .map((_, idx) => idx)
+      .filter((idx) => !jaTem.has(idx))
+      .map((idx) => ({ key: p.id + '|cid|' + idx, procId: p.id, idx }));
+    if (!novos.length) return;
+    st.cids = st.cids.concat(novos);
+    persistir();
+    atualizar();
+  },
+  'toggle-cid': (ds) => {
+    alternarCid(ds.id, Number(ds.idx));
+    atualizar();
+  },
+  'remove-cid': (ds) => {
+    st.cids = st.cids.filter((c) => c.key !== ds.key);
+    persistir();
     atualizar();
   },
   'toggle-opme': (ds) => {
@@ -941,10 +1179,34 @@ const ACOES = {
     st.opmeExp = !st.opmeExp;
     atualizar();
   },
+  'exame-all': () => {
+    const p = proc(st.procId);
+    if (!p) return;
+    const jaTem = new Set(st.exames.filter((e) => e.procId === p.id).map((e) => e.idx));
+    const novos = p.exames
+      .map((_, idx) => idx)
+      .filter((idx) => !jaTem.has(idx))
+      .map((idx) => ({ key: p.id + '|exame|' + idx, procId: p.id, idx }));
+    if (!novos.length) return;
+    st.exames = st.exames.concat(novos);
+    persistir();
+    atualizar();
+  },
+  'toggle-exame': (ds) => {
+    alternarExame(ds.id, Number(ds.idx));
+    atualizar();
+  },
+  'remove-exame': (ds) => {
+    st.exames = st.exames.filter((e) => e.key !== ds.key);
+    persistir();
+    atualizar();
+  },
 
   limpar: () => {
     st.cesta = [];
     st.opme = [];
+    st.exames = [];
+    st.cids = [];
     persistir();
     atualizar();
     toast('Solicitação limpa');
@@ -991,48 +1253,46 @@ const ACOES = {
   },
 
   'export-open': () => {
-    if (!st.cesta.length && !st.opme.length) return;
-    st.exportOpen = true;
-    renderSheet();
-    if (!cid10Cache) {
-      // busca em segundo plano; atualiza a prévia se ainda estiver aberta quando terminar
-      garantirCid10().then(() => {
-        if (st.exportOpen) renderSheet();
-      });
-    }
+    gerarSolicitacao();
   },
-  'export-close': () => {
-    st.exportOpen = false;
-    renderSheet();
+
+  'abrir-solicitacoes': () => navegar('#/solicitacoes'),
+  'abrir-solicitacao': (ds) => navegar('#/solicitacoes/' + encodeURIComponent(ds.id)),
+  'excluir-solicitacao': (ds) => {
+    if (!window.confirm('Excluir esta solicitação?')) return;
+    st.solicitacoes = st.solicitacoes.filter((r) => r.id !== ds.id);
+    persistir();
+    navegar('#/solicitacoes');
+    toast('Solicitação excluída');
   },
+
   'modo-completa': () => {
     st.exportModo = 'completa';
     persistir();
-    renderSheet();
+    atualizar();
   },
   'modo-simples': () => {
     st.exportModo = 'simples';
     persistir();
-    renderSheet();
+    atualizar();
   },
 
   copiar: async () => {
-    const ok = await copiarTexto(texto(st.data, st, rowsAtuais(), cid10Cache, rowsOpmeAtuais()));
-    st.exportOpen = false;
-    renderSheet();
+    const registro = registroPorId(st.solicVerId);
+    if (!registro) return;
+    const ok = await copiarTexto(texto(st.data, stDoRegistro(registro), registroLinhas(registro)));
     toast(ok ? 'Texto copiado' : 'Não foi possível copiar');
   },
   pdf: () => {
-    const rows = rowsAtuais();
-    st.exportOpen = false;
-    renderSheet();
-    const ok = imprimir(st.data, st, rows, cid10Cache, rowsOpmeAtuais());
+    const registro = registroPorId(st.solicVerId);
+    if (!registro) return;
+    const ok = imprimir(st.data, stDoRegistro(registro), registroLinhas(registro));
     if (!ok) toast('Impressão indisponível neste navegador');
   },
   compartilhar: async () => {
-    const t = texto(st.data, st, rowsAtuais(), cid10Cache, rowsOpmeAtuais());
-    st.exportOpen = false;
-    renderSheet();
+    const registro = registroPorId(st.solicVerId);
+    if (!registro) return;
+    const t = texto(st.data, stDoRegistro(registro), registroLinhas(registro));
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Solicitação cirúrgica', text: t });
@@ -1058,11 +1318,6 @@ document.addEventListener('click', (ev) => {
   // clique fantasma logo após arrastar um "recente" — não abre o procedimento
   if (suprimir && alvo.classList.contains('recente')) {
     ev.preventDefault();
-    return;
-  }
-
-  // clique dentro do sheet não deve fechá-lo pelo overlay
-  if (alvo.dataset.act === 'export-close' && alvo.classList.contains('sheet-overlay') && ev.target.closest('[data-stop]')) {
     return;
   }
 
@@ -1092,13 +1347,6 @@ el.clear.addEventListener('click', () => {
   el.clear.hidden = true;
   el.input.focus();
   if (st.screen === 'home') el.screen.innerHTML = telaHome();
-});
-
-document.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Escape' && st.exportOpen) {
-    st.exportOpen = false;
-    renderSheet();
-  }
 });
 
 window.addEventListener('hashchange', aplicarRota);
@@ -1145,6 +1393,14 @@ async function iniciar() {
       const p = st.data.proc(o.procId);
       return p && p.opme[o.idx];
     });
+    st.exames = st.exames.filter((e) => {
+      const p = st.data.proc(e.procId);
+      return p && p.exames[e.idx];
+    });
+    st.cids = st.cids.filter((c) => {
+      const p = st.data.proc(c.procId);
+      return p && p.cids[c.idx];
+    });
     persistir();
   } catch (e) {
     st.erro = (e && e.message) || String(e);
@@ -1153,7 +1409,10 @@ async function iniciar() {
 }
 
 iniciar();
-garantirCid10(); // pré-busca em segundo plano; pronta quando o usuário chegar à solicitação
+// pré-busca em segundo plano; reexibe a tela atual se ela mostra descrições de CID
+garantirCid10().then(() => {
+  if (['proc', 'cesta', 'solicitacao-detalhe', 'solicitacoes'].includes(st.screen)) atualizar();
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
