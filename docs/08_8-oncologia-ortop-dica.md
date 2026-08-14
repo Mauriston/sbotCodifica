@@ -15,7 +15,7 @@
 **Exames da Indicação:** Radiografia e/ou Tomografia Computadorizada e/ou Ressonância Magnética e/ou Ultrassom e/ou PET-CT
 
 **Códigos CBHPM**
-```md
+
 | Código | Descrição do procedimento | Porte |
 |---|---|---|
 | 3.01.01.91-3 | TU partes moles - exérese | 4A |
@@ -34,7 +34,7 @@
 | 3.07.31.13-5 | Tenorrafia múltipla em outras regiões³ | 4C |
 | 3.07.30.11-2 | Miorrafias | 3C |
 | 3.07.30.04-0 | Desinserção ou miotomia | 3C |
-```
+
 **OPMEs**
 
 | Descrição | Quantidade |
