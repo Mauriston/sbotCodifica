@@ -130,7 +130,7 @@
 - **2.39** — TRATAMENTO CIRÚRGICO DA FRATURA DA CABEÇA DO RÁDIO (p. 175)
 - **2.40** — TRATAMENTO CIRÚRGICO DA CAPSULITE ADESIVA E LESÕES ASSOCIADAS (p. 176)
 
-## 3 – CIRURGIA DA MÃO (SBCM)
+## [3 – CIRURGIA DA MÃO (SBCM)](https://github.com/Mauriston/sbotCodifica/blob/main/docs/docs/03_3-cirurgia-da-m-o-sbcm.md)
 
 - **3.2** — CONSULTA DE RETORNO PÓS-OPERATÓRIO + CURATIVO (p. 177)
 - **3.3** — INFILTRAÇÃO PONTO-GATILHO OU AGULHAMENTO SECO (p. 178)
