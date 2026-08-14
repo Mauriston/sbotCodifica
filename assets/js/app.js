@@ -4,7 +4,7 @@
    renderização direta em HTML. Sem dependências e sem etapa de build:
    o que está no repositório é exatamente o que o GitHub Pages publica. */
 
-import { brl, esc, carCores, carCurto, sigla, MANUAL_PDF } from './format.js';
+import { brl, esc, carCores, carCurto, sigla, nomeCurto, MANUAL_PDF } from './format.js';
 import { carregarDados, buscar } from './data.js';
 import { persistido, salvar } from './store.js';
 import { linhas, linhasOpme, totais, texto } from './solicitacao.js';
@@ -326,7 +326,7 @@ function blocoResultados(q) {
           <span class="chip chip--esp">${esc(p.esp)}</span>
           ${chipCar(p.car, true)}
         </div>
-        <div class="result__nome">${esc(p.nome)}</div>
+        <div class="result__nome">${esc(nomeCurto(p.nome))}</div>
         <div class="result__meta">${esc(meta)}</div>
         ${hit ? `<div class="result__hit">${esc(hit)}</div>` : ''}
       </button>`;
@@ -423,7 +423,7 @@ function telaEspecialidade() {
       <button class="card card--tap" type="button" data-act="open-proc" data-id="${esc(p.id)}">
         <div class="proc-row">
           <div style="flex:1;min-width:0">
-            <div class="proc-row__nome">${esc(p.nome)}</div>
+            <div class="proc-row__nome">${esc(nomeCurto(p.nome))}</div>
             <div class="proc-row__meta">${esc(meta)}</div>
           </div>
           ${chipCar(p.car, true)}

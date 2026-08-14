@@ -55,3 +55,10 @@ export const esc = (s) =>
 export const carCores = (c) => CAR[c] || CAR['Eletiva'];
 export const carCurto = (c) => CURTO[c] || c;
 export const sigla = (nome) => SIGLAS[nome] || nome.slice(0, 2).toUpperCase();
+
+// "TRATAMENTO CIRÚRGICO DA/DO/DE/DAS/DOS " no início do nome — prefixo repetido
+// em mais da metade dos procedimentos do Manual.
+const PREFIXO_TRATAMENTO_RE = /^TRATAMENTO CIR[UÚ]RGICO\s+D(?:[AO]S?|E)\s+/i;
+
+/** Nome do procedimento sem o prefixo "Tratamento cirúrgico do/da/de", para listas compactas de cards. */
+export const nomeCurto = (nome) => (nome || '').replace(PREFIXO_TRATAMENTO_RE, '');
