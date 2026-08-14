@@ -153,6 +153,78 @@ function registrarHistorico(id) {
   persistir();
 }
 
+function removerRecente(id) {
+  st.hist = st.hist.filter((h) => h !== id);
+  persistir();
+  if (st.screen === 'home') atualizar();
+}
+
+/* --------------------------------------------- deslizar recente pra apagar -- */
+
+// arrasto detectado por último: suprime o clique fantasma que o navegador
+// dispara logo após o pointerup de um arrasto, pra não abrir o procedimento
+let swipeAcabouDeArrastar = false;
+let swipeFlagTimer = null;
+
+function iniciarSwipeRecente(wrap, evInicio) {
+  const cartao = wrap.querySelector('.recente');
+  if (!cartao) return;
+
+  const largura = wrap.getBoundingClientRect().width;
+  const limiar = Math.min(64, largura * 0.35);
+  const startX = evInicio.clientX;
+  const startY = evInicio.clientY;
+  let dx = 0;
+  let horizontal = null; // null = ainda indefinido, true/false após o 1º movimento decisivo
+
+  function mover(ev) {
+    const deltaX = ev.clientX - startX;
+    const deltaY = ev.clientY - startY;
+    if (horizontal === null) {
+      if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
+      horizontal = Math.abs(deltaX) > Math.abs(deltaY);
+      if (horizontal) cartao.classList.add('recente--arrastando');
+    }
+    if (!horizontal) return;
+    ev.preventDefault();
+    dx = Math.max(-largura, Math.min(0, deltaX));
+    cartao.style.transform = `translateX(${dx}px)`;
+  }
+
+  function soltar() {
+    window.removeEventListener('pointermove', mover);
+    window.removeEventListener('pointerup', soltar);
+    window.removeEventListener('pointercancel', soltar);
+    if (!horizontal) return;
+
+    cartao.classList.remove('recente--arrastando');
+    swipeAcabouDeArrastar = true;
+    clearTimeout(swipeFlagTimer);
+    swipeFlagTimer = setTimeout(() => {
+      swipeAcabouDeArrastar = false;
+    }, 400);
+
+    if (dx <= -limiar) {
+      cartao.style.transform = `translateX(-${largura}px)`;
+      cartao.style.opacity = '0';
+      const id = wrap.dataset.id;
+      setTimeout(() => removerRecente(id), 180);
+    } else {
+      cartao.style.transform = '';
+    }
+  }
+
+  window.addEventListener('pointermove', mover);
+  window.addEventListener('pointerup', soltar);
+  window.addEventListener('pointercancel', soltar);
+}
+
+document.addEventListener('pointerdown', (ev) => {
+  if (ev.button !== undefined && ev.button !== 0) return;
+  const wrap = ev.target.closest('.recente-wrap');
+  if (wrap) iniciarSwipeRecente(wrap, ev);
+});
+
 /* ------------------------------------------------------------- solicitação -- */
 
 function alternarCodigo(procId, codigo, porte) {
@@ -261,11 +333,17 @@ function blocoNavegacao() {
         ${recentes
           .map(
             (p) => `
-          <button class="recente" type="button" data-act="open-proc" data-id="${esc(p.id)}">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9199" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-            <span>${esc(p.nome)}</span>
-            ${iconeChevron()}
-          </button>`
+          <div class="recente-wrap" data-id="${esc(p.id)}">
+            <div class="recente-del" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"></path></svg>
+              <span>Remover</span>
+            </div>
+            <button class="recente" type="button" data-act="open-proc" data-id="${esc(p.id)}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9199" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              <span>${esc(p.nome)}</span>
+              ${iconeChevron()}
+            </button>
+          </div>`
           )
           .join('')}
       </div>
@@ -853,8 +931,17 @@ const ACOES = {
 /* ---------------------------------------------------------------- eventos -- */
 
 document.addEventListener('click', (ev) => {
+  const suprimir = swipeAcabouDeArrastar;
+  swipeAcabouDeArrastar = false;
+
   const alvo = ev.target.closest('[data-act]');
   if (!alvo) return;
+
+  // clique fantasma logo após arrastar um "recente" — não abre o procedimento
+  if (suprimir && alvo.classList.contains('recente')) {
+    ev.preventDefault();
+    return;
+  }
 
   // clique dentro do sheet não deve fechá-lo pelo overlay
   if (alvo.dataset.act === 'export-close' && alvo.classList.contains('sheet-overlay') && ev.target.closest('[data-stop]')) {
