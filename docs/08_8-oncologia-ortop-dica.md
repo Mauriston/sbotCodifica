@@ -1,9 +1,3 @@
-
-[![Voltar]([image-url.jpg](https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=arrow_back))]([https://google.com](https://github.com/Mauriston/sbotCodifica/blob/main/docs/00_indice.md#manual-de-diretrizes-de-codifica%C3%A7%C3%A3o-em-ortopedia-e-traumatologia--sbot 
-))
-<svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#FFFF55"><path d="m334-427.33 221.67 222.66-75 74-350-350L480-830l76 74.67-222 222h496v106H334Z"/></svg>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=arrow_back" />
-https://github.com/Mauriston/sbotCodifica/blob/main/docs/00_indice.md#manual-de-diretrizes-de-codifica%C3%A7%C3%A3o-em-ortopedia-e-traumatologia--sbot 
 # 8 – ONCOLOGIA ORTOPÉDICA
 
 ### 8.1 — RESSECÇÃO DE TUMOR DE PARTES MOLES - SIMPLES
@@ -21,7 +15,7 @@ https://github.com/Mauriston/sbotCodifica/blob/main/docs/00_indice.md#manual-de-
 **Exames da Indicação:** Radiografia e/ou Tomografia Computadorizada e/ou Ressonância Magnética e/ou Ultrassom e/ou PET-CT
 
 **Códigos CBHPM**
-
+```
 | Código | Descrição do procedimento | Porte |
 |---|---|---|
 | 3.01.01.91-3 | TU partes moles - exérese | 4A |
@@ -40,7 +34,7 @@ https://github.com/Mauriston/sbotCodifica/blob/main/docs/00_indice.md#manual-de-
 | 3.07.31.13-5 | Tenorrafia múltipla em outras regiões³ | 4C |
 | 3.07.30.11-2 | Miorrafias | 3C |
 | 3.07.30.04-0 | Desinserção ou miotomia | 3C |
-
+```
 **OPMEs**
 
 | Descrição | Quantidade |
