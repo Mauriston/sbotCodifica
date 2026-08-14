@@ -287,7 +287,7 @@
 - **7.63** — TRATAMENTO CIRÚRGICA DA FRATURA DO TALUS (p. 381)
 - **7.64** — FASCIOTOMIA PARA SÍNDROME COMPARTIMENTAL (p. 382)
 
-## [8 – ONCOLOGIA ORTOPÉDICA](docs/08_8-oncologia-ortop-dica.md)
+## [8 – ONCOLOGIA ORTOPÉDICA](https://github.com/Mauriston/sbotCodifica/blob/main/docs/08_8-oncologia-ortop-dica.md)
 
 - **8.1** — RESSECÇÃO DE TUMOR DE PARTES MOLES - SIMPLES (p. 383)
 - **8.2** — RESSECÇÃO DE TUMOR DE PARTES MOLES COM ENVOLVIMENTO VASCULAR (p. 384)
