@@ -446,7 +446,7 @@ function telaProcedimento() {
 
 function telaSolicitacao() {
   const rows = rowsAtuais();
-  const { somaCheia, total, reducao } = totais(rows);
+  const { total } = totais(rows);
   const temItens = rows.length > 0;
 
   const procsNomes = [...new Set(st.cesta.map((c) => c.procId))]
@@ -503,7 +503,7 @@ function telaSolicitacao() {
   const cards = rows
     .map((r) => {
       const classePct = r.fator === 1 ? 'pct--100' : r.fator >= 0.7 ? 'pct--70' : 'pct--50';
-      const mostrarVia = !r.principal && !st.semReducao;
+      const mostrarVia = !r.principal;
       return `
       <div class="solic-card">
         <div class="solic-card__row">
@@ -537,17 +537,10 @@ function telaSolicitacao() {
     `<div class="solic-list">
       ${cards}
       <div class="totais">
-        <div class="totais__linha"><span>Soma cheia (${rows.length} códigos)</span><span>${esc(brl(somaCheia))}</span></div>
-        <div class="totais__linha"><span>Redução via de acesso</span><span class="totais__reducao">− ${esc(brl(reducao))}</span></div>
         <div class="totais__total">
           <span class="totais__total-label">Total CBHPM ${esc(st.ano)}</span>
           <span class="totais__total-valor">${esc(brl(total))}</span>
         </div>
-        <div class="totais__nota">Valores de porte cirúrgico da tabela CBHPM. Não inclui porte anestésico, custo operacional nem materiais.</div>
-        <button class="totais__regra ${st.semReducao ? '' : 'via--on'}" type="button" data-act="regra" aria-pressed="${!st.semReducao}">
-          <span class="via__box">${iconeCheck(9)}</span>
-          <span>Aplicar redução por via de acesso</span>
-        </button>
       </div>
       <button class="btn-primary btn-primary--block" type="button" data-act="export-open">Gerar solicitação</button>
     </div>`
@@ -786,11 +779,6 @@ const ACOES = {
   },
   ano: (ds) => {
     st.ano = ds.ano;
-    persistir();
-    atualizar();
-  },
-  regra: () => {
-    st.semReducao = !st.semReducao;
     persistir();
     atualizar();
   },

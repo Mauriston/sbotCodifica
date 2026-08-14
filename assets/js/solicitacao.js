@@ -25,7 +25,7 @@ export function linhas(data, st) {
   return base.map((r, i) => {
     const via = r.via === 'outra' ? 'outra' : 'mesma';
     const principal = i === 0;
-    const fator = st.semReducao || principal ? 1 : via === 'outra' ? 0.7 : 0.5;
+    const fator = principal ? 1 : via === 'outra' ? 0.7 : 0.5;
     return {
       ...r,
       via,

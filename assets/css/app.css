@@ -677,20 +677,10 @@ a { color: var(--blue-600); }
 .solic-card__remove { font-size: 11px; color: var(--orange); margin-top: 6px; }
 
 .totais { background: var(--white); border-radius: 14px; padding: 16px; margin-top: 4px; }
-.totais__linha {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-.totais__reducao { color: var(--orange); }
 .totais__total {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding-top: 12px;
-  border-top: 1px solid var(--bg);
 }
 .totais__total-label { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
 .totais__total-valor {
@@ -699,18 +689,6 @@ a { color: var(--blue-600); }
   font-size: 22px;
   color: var(--green-700);
 }
-.totais__nota { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.45; }
-.totais__regra {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--bg);
-  width: 100%;
-}
-.totais__regra span { font-size: 11.5px; color: var(--muted); }
-.totais__regra.via--on span { color: var(--blue-600); }
 
 /* --------------------------------------------------------------------------
    Salvos

@@ -11,7 +11,6 @@ const PADRAO = {
   ano: null,          // ano da tabela CBHPM escolhido
   urgencia: false,    // porte +30%
   apartamento: false, // porte ×2
-  semReducao: false,  // desliga a regra de via de acesso
   exportModo: 'completa',
   salvosTab: 'fav'
 };
