@@ -5,7 +5,7 @@
    Arquivos"/"Enviar por…" como PDF; no desktop, "Salvar como PDF". */
 
 import { brl, esc } from './format.js';
-import { totais, procedimentosDaSolicitacao, acrescimos, linhaCid } from './solicitacao.js';
+import { totais, procedimentosDaSolicitacao, acrescimos, linhaCid, linhaOpme } from './solicitacao.js';
 
 const dataLonga = () =>
   new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -47,9 +47,13 @@ function listaCids(data, cids, cid10Map) {
     .join('')}</ul>`;
 }
 
+function listaOpme(opmeRows) {
+  return `<ul class="doc__body">${opmeRows.map((o) => `<li>${esc(linhaOpme(o))}</li>`).join('')}</ul>`;
+}
+
 /** Monta o documento imprimível a partir do estado atual. */
-export function montarDocumento(data, st, rows, cid10Map) {
-  const procs = procedimentosDaSolicitacao(data, rows);
+export function montarDocumento(data, st, rows, cid10Map, opmeRows = []) {
+  const procs = procedimentosDaSolicitacao(data, rows, opmeRows);
   const simples = st.exportModo === 'simples';
   const extras = acrescimos(st);
   const { total } = totais(rows);
@@ -57,11 +61,15 @@ export function montarDocumento(data, st, rows, cid10Map) {
   const exames = [...new Set(procs.flatMap((p) => p.exames))];
   const cids = [...new Set(procs.flatMap((p) => p.cids))];
 
-  const secaoCodigos = simples
-    ? `<h2>Códigos TUSS</h2>${listaCodigos(rows)}`
-    : `<h2>Códigos (CBHPM ${esc(st.ano)}${extras.length ? ' · ' + esc(extras.join(' · ')) : ''})</h2>
-       ${tabelaCodigos(rows)}
-       <div class="doc__total"><span>Total</span><span>${esc(brl(total))}</span></div>`;
+  const secaoCodigos = !rows.length
+    ? ''
+    : simples
+    ? `<div class="doc__section"><h2>Códigos TUSS</h2>${listaCodigos(rows)}</div>`
+    : `<div class="doc__section">
+         <h2>Códigos (CBHPM ${esc(st.ano)}${extras.length ? ' · ' + esc(extras.join(' · ')) : ''})</h2>
+         ${tabelaCodigos(rows)}
+         <div class="doc__total"><span>Total</span><span>${esc(brl(total))}</span></div>
+       </div>`;
 
   return `
     <div class="doc">
@@ -77,7 +85,7 @@ export function montarDocumento(data, st, rows, cid10Map) {
         ${procs.map((p) => `<div class="doc__proc">${esc(p.nome)}</div>`).join('')}
       </div>
 
-      <div class="doc__section">${secaoCodigos}</div>
+      ${secaoCodigos}
 
       <div class="doc__section">
         <h2>Exames para autorização</h2>
@@ -87,6 +95,11 @@ export function montarDocumento(data, st, rows, cid10Map) {
       <div class="doc__section">
         <h2>CID-10</h2>
         ${cids.length ? listaCids(data, cids, cid10Map) : '<div class="doc__body">não informado</div>'}
+      </div>
+
+      <div class="doc__section">
+        <h2>OPME sugeridos</h2>
+        ${opmeRows.length ? listaOpme(opmeRows) : '<div class="doc__body">não informado</div>'}
       </div>
 
       <div class="doc__foot">
@@ -102,11 +115,11 @@ export function montarDocumento(data, st, rows, cid10Map) {
 }
 
 /** Preenche #print-root e dispara a impressão. Devolve false se o navegador não suporta. */
-export function imprimir(data, st, rows, cid10Map) {
+export function imprimir(data, st, rows, cid10Map, opmeRows = []) {
   const alvo = document.getElementById('print-root');
   if (!alvo || typeof window.print !== 'function') return false;
 
-  alvo.innerHTML = montarDocumento(data, st, rows, cid10Map);
+  alvo.innerHTML = montarDocumento(data, st, rows, cid10Map, opmeRows);
   const tituloOriginal = document.title;
   document.title = 'Solicitacao-SBOT-' + new Date().toISOString().slice(0, 10);
 

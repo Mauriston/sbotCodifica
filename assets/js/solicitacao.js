@@ -45,10 +45,24 @@ export function totais(rows) {
   return { somaCheia, total, reducao: somaCheia - total };
 }
 
-/** Procedimentos representados na solicitação, na ordem em que aparecem. */
-export function procedimentosDaSolicitacao(data, rows) {
-  const ids = [...new Set(rows.map((r) => r.procId))];
+/** Procedimentos representados na solicitação (códigos e/ou OPME), na ordem em que aparecem. */
+export function procedimentosDaSolicitacao(data, rows, opmeRows = []) {
+  const ids = [...new Set([...rows.map((r) => r.procId), ...opmeRows.map((o) => o.procId)])];
   return ids.map((id) => data.proc(id)).filter(Boolean);
+}
+
+/**
+ * Linhas de OPME selecionadas, resolvidas a partir do catálogo — a store
+ * guarda só a referência (procId + idx), nunca uma cópia do texto do item.
+ */
+export function linhasOpme(data, st) {
+  return st.opme
+    .map((o) => {
+      const p = data.proc(o.procId);
+      const item = p && p.opme[o.idx];
+      return item ? { key: o.key, procId: o.procId, ...item } : null;
+    })
+    .filter(Boolean);
 }
 
 /** Acréscimos ativos, como rótulos curtos ("urgência +30%", "apartamento ×2"). */
@@ -72,14 +86,21 @@ export function linhaCid(data, cid10Map, c) {
   return abreviada || c + ' - ' + (data.cid[c] || 'descrição não informada');
 }
 
+/** Linha de exibição de um item OPME: "2x PARAFUSO CORTICAL" ou só o nome quando sem quantidade. */
+export function linhaOpme(o) {
+  const nome = (o.grupo ? o.grupo + ' — ' : '') + o.item;
+  return o.quantidade ? o.quantidade + 'x ' + nome : nome;
+}
+
 /**
  * Texto da solicitação, no formato definido pelo usuário.
- * modo 'completa'   → descrição, códigos com porte/valor, total, exames e CID (forma abreviada)
+ * modo 'completa'   → descrição, códigos com porte/valor, total, exames, CID (forma abreviada) e OPME
  * modo 'simples'    → descrição e lista "CÓDIGOS TUSS:" com código e descrição
  * @param {Map<string,string>|null} cid10Map código CID → descrição abreviada (ver cid10.js)
+ * @param {Array} opmeRows itens OPME selecionados (ver linhasOpme)
  */
-export function texto(data, st, rows, cid10Map) {
-  const procs = procedimentosDaSolicitacao(data, rows);
+export function texto(data, st, rows, cid10Map, opmeRows = []) {
+  const procs = procedimentosDaSolicitacao(data, rows, opmeRows);
 
   if (st.exportModo === 'simples') {
     let s = procs.map((p) => p.nome).join('\n') + '\n\nCÓDIGOS TUSS:\n';
@@ -89,17 +110,21 @@ export function texto(data, st, rows, cid10Map) {
 
   const extras = acrescimos(st);
   let t = procs.map((p) => p.nome).join('\n') + '\n\n';
-  t += 'CÓDIGOS (CBHPM ' + st.ano + (extras.length ? ' · ' + extras.join(' · ') : '') + ')\n\n';
-  for (const r of rows) {
-    t += r.codigo + '  porte ' + r.porte + '  ' + brl(r.final) + '\n';
+  if (rows.length) {
+    t += 'CÓDIGOS (CBHPM ' + st.ano + (extras.length ? ' · ' + extras.join(' · ') : '') + ')\n\n';
+    for (const r of rows) {
+      t += r.codigo + '  porte ' + r.porte + '  ' + brl(r.final) + '\n';
+    }
+    t += 'TOTAL: ' + brl(totais(rows).total) + '\n\n';
+    t += '------\n\n';
   }
-  t += 'TOTAL: ' + brl(totais(rows).total) + '\n\n';
-  t += '------\n\n';
 
   const exames = [...new Set(procs.flatMap((p) => p.exames))];
   const cids = [...new Set(procs.flatMap((p) => p.cids))];
   t += 'Exames: ' + (exames.length ? exames.join('; ') : 'não informado') + '\n\n';
   t += 'CID:\n';
-  t += cids.length ? cids.map((c) => '* ' + linhaCid(data, cid10Map, c)).join('\n') : 'não informado';
+  t += (cids.length ? cids.map((c) => '* ' + linhaCid(data, cid10Map, c)).join('\n') : 'não informado') + '\n\n';
+  t += 'OPME:\n';
+  t += opmeRows.length ? opmeRows.map((o) => '* ' + linhaOpme(o)).join('\n') : 'não informado';
   return t;
 }

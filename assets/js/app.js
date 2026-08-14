@@ -7,7 +7,7 @@
 import { brl, esc, carCores, carCurto, sigla, MANUAL_PDF } from './format.js';
 import { carregarDados, buscar } from './data.js';
 import { persistido, salvar } from './store.js';
-import { linhas, totais, texto } from './solicitacao.js';
+import { linhas, linhasOpme, totais, texto } from './solicitacao.js';
 import { imprimir } from './print.js';
 import { carregarCid10Abreviado } from './cid10.js';
 
@@ -22,6 +22,7 @@ const st = {
   procId: null,
   cidSel: null,
   cidExp: false,
+  opmeExp: false,
   exportOpen: false,
   ...persistido
 };
@@ -53,6 +54,7 @@ let toastTimer = null;
 
 const proc = (id) => (st.data ? st.data.proc(id) : null);
 const rowsAtuais = () => (st.data ? linhas(st.data, st) : []);
+const rowsOpmeAtuais = () => (st.data ? linhasOpme(st.data, st) : []);
 
 function persistir() {
   salvar(st);
@@ -125,6 +127,7 @@ function aplicarRota() {
     st.procId = id;
     st.cidSel = null;
     st.cidExp = false;
+    st.opmeExp = false;
     registrarHistorico(id);
   } else if (secao === 'solicitacao') {
     st.screen = 'cesta';
@@ -243,6 +246,13 @@ function alternarVia(key) {
   persistir();
 }
 
+function alternarOpme(procId, idx) {
+  const key = procId + '|opme|' + idx;
+  const existe = st.opme.some((o) => o.key === key);
+  st.opme = existe ? st.opme.filter((o) => o.key !== key) : st.opme.concat([{ key, procId, idx }]);
+  persistir();
+}
+
 /* ---------------------------------------------------------------- partes -- */
 
 function chipCar(car, curto) {
@@ -260,6 +270,19 @@ function iconeVoltar() {
 
 function iconeCheck(tam = 11) {
   return `<svg width="${tam}" height="${tam}" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.5" aria-hidden="true"><path d="M5 13l4 4 10-10"></path></svg>`;
+}
+
+const OPME_LIMITE = 24;
+
+/** Agrupa itens de OPME consecutivos do mesmo grupo/variante (ex.: "Opção 1"), preservando a ordem do Manual. */
+function blocosOpme(itens) {
+  const blocos = [];
+  for (const it of itens) {
+    const ultimo = blocos[blocos.length - 1];
+    if (ultimo && ultimo.grupo === it.grupo) ultimo.itens.push(it);
+    else blocos.push({ grupo: it.grupo, itens: [it] });
+  }
+  return blocos;
 }
 
 /* ----------------------------------------------------------------- telas -- */
@@ -480,6 +503,36 @@ function telaProcedimento() {
         .join('')
     : `<div class="exames__vazio">Não informado no Manual.</div>`;
 
+  const opmeSelecionados = new Set(st.opme.filter((o) => o.procId === p.id).map((o) => o.idx));
+  const opmeMostrar = st.opmeExp || p.opme.length <= OPME_LIMITE ? p.opme : p.opme.slice(0, OPME_LIMITE);
+  const opmeBlocos = blocosOpme(opmeMostrar)
+    .map((b) => {
+      const notas = [...new Set(b.itens.map((it) => it.observacao).filter(Boolean))];
+      const cabecalho = b.grupo ? `<div class="opme-grupo">${esc(b.grupo)}</div>` : '';
+      const notasHtml = notas.map((n) => `<div class="opme-nota">${esc(n)}</div>`).join('');
+      const linhas = b.itens
+        .map((it) => {
+          const on = opmeSelecionados.has(it.idx);
+          return `
+          <button class="opme-item ${on ? 'opme-item--on' : ''}" type="button" aria-pressed="${on}"
+                  data-act="toggle-opme" data-id="${esc(p.id)}" data-idx="${it.idx}">
+            <span class="opme-item__check">${iconeCheck(9)}</span>
+            <span class="opme-item__nome">${esc(it.item)}</span>
+            ${it.quantidade ? `<span class="opme-item__qtd">×${esc(it.quantidade)}</span>` : ''}
+          </button>`;
+        })
+        .join('');
+      return cabecalho + notasHtml + linhas;
+    })
+    .join('');
+
+  const opmeMais =
+    p.opme.length > OPME_LIMITE
+      ? `<button class="cids__more" type="button" data-act="opme-more">${
+          st.opmeExp ? 'Mostrar menos' : 'Ver todos os ' + p.opme.length + ' itens'
+        }</button>`
+      : '';
+
   return `
     <div class="prochead">
       <div class="prochead__bar">
@@ -519,15 +572,27 @@ function telaProcedimento() {
     <div class="exames">
       <div class="exames__title">Exames para autorização</div>
       <div class="exames__box">${exames}</div>
+    </div>
+
+    <div class="opme">
+      <div class="section-head">
+        <span class="section-title">OPME sugeridos</span>
+        <span class="muted" style="font-size:12px">${p.opme.length}</span>
+      </div>
+      <div class="opme-box">
+        ${p.opme.length ? opmeBlocos : '<div class="exames__vazio">Não informado no Manual.</div>'}
+        ${opmeMais}
+      </div>
     </div>`;
 }
 
 function telaSolicitacao() {
   const rows = rowsAtuais();
+  const opmeRows = rowsOpmeAtuais();
   const { total } = totais(rows);
-  const temItens = rows.length > 0;
+  const temItens = rows.length > 0 || opmeRows.length > 0;
 
-  const procsNomes = [...new Set(st.cesta.map((c) => c.procId))]
+  const procsNomes = [...new Set([...st.cesta.map((c) => c.procId), ...st.opme.map((o) => o.procId)])]
     .map((id) => proc(id))
     .filter(Boolean)
     .map((p) => p.nome)
@@ -573,7 +638,7 @@ function telaSolicitacao() {
          <div style="width:56px;height:56px;border-radius:999px;background:#E4E6E7;margin:0 auto 16px;display:flex;align-items:center;justify-content:center">
            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7680" stroke-width="1.8" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v4h4M10 12h6M10 16h4"></path></svg>
          </div>
-         Nenhum código selecionado. Abra um procedimento e marque os códigos que vão na solicitação.
+         Nenhum código ou OPME selecionado. Abra um procedimento e marque o que vai na solicitação.
        </div>`
     );
   }
@@ -610,16 +675,48 @@ function telaSolicitacao() {
     })
     .join('');
 
-  return (
-    cabecalho +
-    `<div class="solic-list">
-      ${cards}
+  const opmeSecao = opmeRows.length
+    ? `
+    <div class="opme">
+      <div class="section-head">
+        <span class="section-title">OPME selecionados</span>
+        <span class="muted" style="font-size:12px">${opmeRows.length}</span>
+      </div>
+      <div class="opme-box">
+        ${opmeRows
+          .map((o) => {
+            const p = proc(o.procId);
+            const nome = (o.grupo ? o.grupo + ' — ' : '') + o.item;
+            return `
+            <div class="opme-sel">
+              <div class="opme-sel__body">
+                <div class="opme-sel__nome">${esc(nome)}</div>
+                <div class="opme-sel__origem">${esc(p ? p.nome : '')}${o.quantidade ? ' · ×' + esc(o.quantidade) : ''}</div>
+              </div>
+              <button class="solic-card__remove" type="button" data-act="remove-opme" data-key="${esc(o.key)}">remover</button>
+            </div>`;
+          })
+          .join('')}
+      </div>
+    </div>`
+    : '';
+
+  const totaisSecao = rows.length
+    ? `
       <div class="totais">
         <div class="totais__total">
           <span class="totais__total-label">Total CBHPM ${esc(st.ano)}</span>
           <span class="totais__total-valor">${esc(brl(total))}</span>
         </div>
-      </div>
+      </div>`
+    : '';
+
+  return (
+    cabecalho +
+    `<div class="solic-list">
+      ${cards}
+      ${opmeSecao}
+      ${totaisSecao}
       <button class="btn-primary btn-primary--block" type="button" data-act="export-open">Gerar solicitação</button>
     </div>`
   );
@@ -664,11 +761,12 @@ function renderSheet() {
   }
 
   const rows = rowsAtuais();
+  const opmeRows = rowsOpmeAtuais();
   const { total } = totais(rows);
   const simples = st.exportModo === 'simples';
   const resumo = simples
     ? rows.length + ' códigos · sem valores'
-    : rows.length + ' códigos · total ' + brl(total);
+    : rows.length + ' códigos' + (opmeRows.length ? ' · ' + opmeRows.length + ' OPME' : '') + ' · total ' + brl(total);
 
   el.sheet.innerHTML = `
     <div class="sheet-overlay" data-act="export-close" role="dialog" aria-modal="true" aria-label="Solicitação pronta">
@@ -680,7 +778,7 @@ function renderSheet() {
           <button class="modo ${simples ? '' : 'modo--on'}" type="button" data-act="modo-completa">Completa</button>
           <button class="modo ${simples ? 'modo--on' : ''}" type="button" data-act="modo-simples">Simplificada (sem valores)</button>
         </div>
-        <pre class="sheet__preview">${esc(texto(st.data, st, rows, cid10Cache))}</pre>
+        <pre class="sheet__preview">${esc(texto(st.data, st, rows, cid10Cache, opmeRows))}</pre>
         <div class="sheet__acoes">
           <button class="sheet__btn sheet__btn--primary" type="button" data-act="copiar">Copiar texto</button>
           <button class="sheet__btn" type="button" data-act="pdf">Gerar PDF</button>
@@ -702,17 +800,23 @@ function renderProcbar() {
 
   const rows = rowsAtuais();
   const doProc = rows.filter((r) => r.procId === st.procId);
-  if (!doProc.length) {
+  const opmeDoProc = rowsOpmeAtuais().filter((o) => o.procId === st.procId);
+  if (!doProc.length && !opmeDoProc.length) {
     el.procbar.innerHTML = '';
     return;
   }
 
   const { total } = totais(rows);
+  const partes = [];
+  if (doProc.length) partes.push(doProc.length + ' código' + (doProc.length === 1 ? '' : 's'));
+  if (opmeDoProc.length) partes.push(opmeDoProc.length + ' OPME');
+  const rotulo = partes.join(' · ') + ' selecionado' + (doProc.length + opmeDoProc.length === 1 ? '' : 's');
+
   el.procbar.innerHTML = `
     <div class="procbar">
       <div class="procbar__info">
-        <div class="procbar__label">${doProc.length} código${doProc.length === 1 ? '' : 's'} selecionado${doProc.length === 1 ? '' : 's'}</div>
-        <div class="procbar__total">${esc(brl(total))}</div>
+        <div class="procbar__label">${esc(rotulo)}</div>
+        ${doProc.length ? `<div class="procbar__total">${esc(brl(total))}</div>` : ''}
       </div>
       <button class="btn-primary" type="button" data-act="go-cesta">Ver solicitação</button>
     </div>`;
@@ -720,7 +824,7 @@ function renderProcbar() {
 
 function renderCasca() {
   el.subtitle.textContent = st.data
-    ? 'Manual de Codificação · CBHPM ' + st.ano
+    ? 'Manual de Codificação · CBHPM ' + st.ano + ' · OPME'
     : st.erro
     ? 'banco de dados indisponível'
     : 'carregando manual…';
@@ -829,15 +933,29 @@ const ACOES = {
     st.cidExp = !st.cidExp;
     atualizar();
   },
+  'toggle-opme': (ds) => {
+    alternarOpme(ds.id, Number(ds.idx));
+    atualizar();
+  },
+  'opme-more': () => {
+    st.opmeExp = !st.opmeExp;
+    atualizar();
+  },
 
   limpar: () => {
     st.cesta = [];
+    st.opme = [];
     persistir();
     atualizar();
     toast('Solicitação limpa');
   },
   remove: (ds) => {
     st.cesta = st.cesta.filter((c) => c.key !== ds.key);
+    persistir();
+    atualizar();
+  },
+  'remove-opme': (ds) => {
+    st.opme = st.opme.filter((o) => o.key !== ds.key);
     persistir();
     atualizar();
   },
@@ -873,7 +991,7 @@ const ACOES = {
   },
 
   'export-open': () => {
-    if (!st.cesta.length) return;
+    if (!st.cesta.length && !st.opme.length) return;
     st.exportOpen = true;
     renderSheet();
     if (!cid10Cache) {
@@ -899,7 +1017,7 @@ const ACOES = {
   },
 
   copiar: async () => {
-    const ok = await copiarTexto(texto(st.data, st, rowsAtuais(), cid10Cache));
+    const ok = await copiarTexto(texto(st.data, st, rowsAtuais(), cid10Cache, rowsOpmeAtuais()));
     st.exportOpen = false;
     renderSheet();
     toast(ok ? 'Texto copiado' : 'Não foi possível copiar');
@@ -908,11 +1026,11 @@ const ACOES = {
     const rows = rowsAtuais();
     st.exportOpen = false;
     renderSheet();
-    const ok = imprimir(st.data, st, rows, cid10Cache);
+    const ok = imprimir(st.data, st, rows, cid10Cache, rowsOpmeAtuais());
     if (!ok) toast('Impressão indisponível neste navegador');
   },
   compartilhar: async () => {
-    const t = texto(st.data, st, rowsAtuais(), cid10Cache);
+    const t = texto(st.data, st, rowsAtuais(), cid10Cache, rowsOpmeAtuais());
     st.exportOpen = false;
     renderSheet();
     if (navigator.share) {
@@ -1019,10 +1137,14 @@ async function iniciar() {
     st.data = await carregarDados();
     if (!st.ano || !st.data.meta.anos.includes(st.ano)) st.ano = st.data.meta.anos[0];
 
-    // limpa referências a procedimentos que não existem mais no JSON
+    // limpa referências a procedimentos/itens que não existem mais no JSON
     st.favs = st.favs.filter((id) => st.data.proc(id));
     st.hist = st.hist.filter((id) => st.data.proc(id));
     st.cesta = st.cesta.filter((c) => st.data.proc(c.procId));
+    st.opme = st.opme.filter((o) => {
+      const p = st.data.proc(o.procId);
+      return p && p.opme[o.idx];
+    });
     persistir();
   } catch (e) {
     st.erro = (e && e.message) || String(e);

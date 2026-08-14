@@ -19,7 +19,32 @@ export const DATA_URL = './sbot_cbhpm_tuss_v1.json';
  * @property {string[]} exames
  * @property {{codigo:string, porte:string}[]} tuss
  * @property {string[]} cids
+ * @property {OpmeItem[]} opme
  */
+
+/**
+ * @typedef {Object} OpmeItem
+ * @property {number} idx        posição no array de origem (chave estável)
+ * @property {string} grupo      variante/técnica entre parênteses no início do nome (ex.: "Opção 1"); '' se não houver
+ * @property {string} item       nome do item, sem o prefixo de grupo
+ * @property {number|null} quantidade
+ * @property {string} observacao
+ */
+
+const OPME_GRUPO_RE = /^\(([^)]+)\)\s*(.+)$/;
+
+/** Separa o prefixo "(Grupo) " do nome do item OPME, quando presente. */
+function parseOpmeItem(raw, idx) {
+  const bruto = (raw && raw.item) || '';
+  const m = OPME_GRUPO_RE.exec(bruto);
+  return {
+    idx,
+    grupo: m ? m[1] : '',
+    item: m ? m[2] : bruto,
+    quantidade: (raw && raw.quantidade) ?? null,
+    observacao: (raw && raw.observacao) || ''
+  };
+}
 
 /** Converte o JSON bruto no modelo consumido pelas telas. */
 export function adaptar(raw) {
@@ -46,7 +71,8 @@ export function adaptar(raw) {
     car: p.carater_indicacao || 'Eletiva',
     exames: p.exames_indicacao || [],
     tuss: (p.codigos_tuss || []).map((t) => ({ codigo: t.codigo, porte: t.porte })),
-    cids: p.cids || []
+    cids: p.cids || [],
+    opme: (p.opme_sugeridos || []).map(parseOpmeItem)
   }));
 
   // índice de busca: uma string normalizada por dimensão pesquisável
@@ -54,7 +80,8 @@ export function adaptar(raw) {
     nome: norm(p.nome),
     esp: norm(p.esp),
     codigos: p.tuss.map((t) => norm(t.codigo)),
-    cids: p.cids.map((c) => ({ codigo: c, busca: norm(c + ' ' + (cid[c] || '')) }))
+    cids: p.cids.map((c) => ({ codigo: c, busca: norm(c + ' ' + (cid[c] || '')) })),
+    opme: p.opme.map((o) => norm(o.item))
   }));
 
   const espCounts = new Map();
@@ -93,8 +120,9 @@ export async function carregarDados(url = DATA_URL) {
 }
 
 /**
- * Busca por nome do procedimento, especialidade, código TUSS/CBHPM ou CID
- * (código ou descrição). Ordena por relevância; devolve no máximo `limite`.
+ * Busca por nome do procedimento, especialidade, código TUSS/CBHPM, CID
+ * (código ou descrição) ou item de OPME sugerido. Ordena por relevância;
+ * devolve no máximo `limite`.
  */
 export function buscar(data, termo, limite = 30) {
   const q = norm(String(termo || '').trim());
@@ -118,6 +146,12 @@ export function buscar(data, termo, limite = 30) {
         if (c) {
           score = 3;
           hit = 'CID ' + c.codigo + ' — ' + (data.cid[c.codigo] || '');
+        } else {
+          const opmeIdx = ix.opme.findIndex((o) => o.includes(q));
+          if (opmeIdx >= 0) {
+            score = 4;
+            hit = 'OPME: ' + data.procs[i].opme[opmeIdx].item;
+          }
         }
       }
     }
