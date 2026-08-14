@@ -363,7 +363,7 @@ function blocoNavegacao() {
             </div>
             <button class="recente" type="button" data-act="open-proc" data-id="${esc(p.id)}">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A9199" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
-              <span>${esc(p.nome)}</span>
+              <span>${esc(nomeCurto(p.nome))}</span>
               ${iconeChevron()}
             </button>
           </div>`
@@ -730,7 +730,7 @@ function telaSalvos() {
     .map(
       (p) => `
       <button class="card card--tap" type="button" data-act="open-proc" data-id="${esc(p.id)}">
-        <div class="salvo__nome">${esc(p.nome)}</div>
+        <div class="salvo__nome">${esc(nomeCurto(p.nome))}</div>
         <div class="salvo__meta">${esc(p.esp)} · ${p.tuss.length} códigos</div>
       </button>`
     )
