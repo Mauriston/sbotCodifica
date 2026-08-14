@@ -37,6 +37,7 @@ const el = {
   tabBadge: document.getElementById('tab-badge'),
   sheet: document.getElementById('sheet'),
   toast: document.getElementById('toast'),
+  tabbar: document.getElementById('tabbar'),
   tabs: {
     home: document.getElementById('tab-home'),
     cesta: document.getElementById('tab-cesta'),
@@ -123,6 +124,10 @@ function aplicarRota() {
   // home e listas de especialidade voltam onde o usuário parou
   const restaura = st.screen === 'home' || st.screen === 'esp';
   el.scroll.scrollTop = restaura ? scrollPorRota.get(hash) || 0 : 0;
+
+  // toda navegação reexibe a tab bar flutuante, sem herdar direção da tela anterior
+  el.tabbar.classList.remove('tabbar--hidden');
+  ultimoScrollTop = el.scroll.scrollTop;
 }
 
 function registrarHistorico(id) {
@@ -882,10 +887,28 @@ document.addEventListener('keydown', (ev) => {
 
 window.addEventListener('hashchange', aplicarRota);
 
+/* Tab bar flutuante: some ao rolar para baixo (mais conteúdo), reaparece ao
+   rolar para cima ou perto do topo. Limiar evita flicker por bounce elástico. */
+const LIMIAR_TABBAR = 8;
+let ultimoScrollTop = 0;
+
+function atualizarVisibilidadeTabbar(scrollTop) {
+  if (scrollTop <= LIMIAR_TABBAR) {
+    el.tabbar.classList.remove('tabbar--hidden');
+  } else if (scrollTop > ultimoScrollTop + LIMIAR_TABBAR) {
+    el.tabbar.classList.add('tabbar--hidden');
+    ultimoScrollTop = scrollTop;
+  } else if (scrollTop < ultimoScrollTop - LIMIAR_TABBAR) {
+    el.tabbar.classList.remove('tabbar--hidden');
+    ultimoScrollTop = scrollTop;
+  }
+}
+
 el.scroll.addEventListener(
   'scroll',
   () => {
     if (rotaAtual) scrollPorRota.set(rotaAtual, el.scroll.scrollTop);
+    atualizarVisibilidadeTabbar(el.scroll.scrollTop);
   },
   { passive: true }
 );

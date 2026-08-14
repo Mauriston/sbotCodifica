@@ -31,6 +31,9 @@
   /* áreas seguras (iOS standalone) */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* espaço reservado no fim do conteúdo p/ a tab bar flutuante nunca cobri-lo */
+  --tabbar-clearance: calc(78px + var(--safe-bottom));
 }
 
 * { box-sizing: border-box; }
@@ -148,6 +151,7 @@ a { color: var(--blue-600); }
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--tabbar-clearance);
 }
 .scroll::-webkit-scrollbar { width: 0; height: 0; }
 
@@ -518,6 +522,7 @@ a { color: var(--blue-600); }
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: var(--tabbar-clearance);
 }
 .procbar__info { flex: 1; min-width: 0; }
 .procbar__label { font-size: 11.5px; color: var(--muted); }
@@ -734,10 +739,22 @@ a { color: var(--blue-600); }
    Tab bar
    -------------------------------------------------------------------------- */
 .tabbar {
-  flex-shrink: 0;
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: calc(14px + var(--safe-bottom));
+  z-index: 40;
   display: flex;
   background: var(--green-500);
-  padding: 10px 0 calc(10px + var(--safe-bottom));
+  border-radius: 20px;
+  padding: 10px 4px;
+  box-shadow: 0 10px 28px rgba(23, 51, 46, .3), 0 2px 10px rgba(23, 51, 46, .16);
+  transition: transform .3s cubic-bezier(.4, 0, .2, 1), opacity .3s ease;
+}
+.tabbar--hidden {
+  transform: translateY(calc(100% + 20px));
+  opacity: 0;
+  pointer-events: none;
 }
 .tab {
   flex: 1;
