@@ -1,6 +1,6 @@
 # 8 – ONCOLOGIA ORTOPÉDICA
 
-### 8.1 — RESSECÇÃO DE TUMOR DE PARTES MOLES - SIMPLES [teste](# 8 - ONCOLOGIA ORTOPÉDICA) 
+### 8.1 — RESSECÇÃO DE TUMOR DE PARTES MOLES - SIMPLES
 
 **Descrição do procedimento:** Abordagem marginal ou ampliada (na dependência do subtipo histológico) dos tumores que acometem as partes moles do sistema musculoesquelético, podendo haver a necessidade de rotação de retalhos e/ou enxertias para cobertura local e/ou melhora da função.
 
