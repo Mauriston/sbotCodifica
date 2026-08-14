@@ -1,7 +1,7 @@
 
 [![Voltar]([image-url.jpg](https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=arrow_back))]([https://google.com](https://github.com/Mauriston/sbotCodifica/blob/main/docs/00_indice.md#manual-de-diretrizes-de-codifica%C3%A7%C3%A3o-em-ortopedia-e-traumatologia--sbot 
 ))
-
+<svg xmlns="http://www.w3.org/2000/svg" height="40px" viewBox="0 -960 960 960" width="40px" fill="#FFFF55"><path d="m334-427.33 221.67 222.66-75 74-350-350L480-830l76 74.67-222 222h496v106H334Z"/></svg>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=arrow_back" />
 https://github.com/Mauriston/sbotCodifica/blob/main/docs/00_indice.md#manual-de-diretrizes-de-codifica%C3%A7%C3%A3o-em-ortopedia-e-traumatologia--sbot 
 # 8 – ONCOLOGIA ORTOPÉDICA
