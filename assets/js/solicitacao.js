@@ -75,9 +75,9 @@ export function texto(data, st, rows) {
 
   const extras = acrescimos(st);
   let t = procs.map((p) => p.nome).join('\n') + '\n\n';
-  t += 'CÓDIGOS (CBHPM ' + st.ano + (extras.length ? ' · ' + extras.join(' · ') : '') + ')\n';
+  t += 'CÓDIGOS (CBHPM ' + st.ano + (extras.length ? ' · ' + extras.join(' · ') : '') + ')\n\n';
   for (const r of rows) {
-    t += r.codigo + '  porte ' + r.porte + '  ' + r.pct + '  ' + brl(r.final) + '\n';
+    t += r.codigo + '  porte ' + r.porte + '  ' + brl(r.final) + '\n';
   }
   t += 'TOTAL: ' + brl(totais(rows).total) + '\n\n';
   t += '------\n\n';
@@ -85,6 +85,9 @@ export function texto(data, st, rows) {
   const exames = [...new Set(procs.flatMap((p) => p.exames))];
   const cids = [...new Set(procs.flatMap((p) => p.cids))];
   t += 'Exames: ' + (exames.length ? exames.join('; ') : 'não informado') + '\n\n';
-  t += 'CID: ' + (cids.length ? cids.join(', ') : 'não informado');
+  t += 'CID:\n';
+  t += cids.length
+    ? cids.map((c) => '* ' + c + ' - ' + (data.cid[c] || 'descrição não informada')).join('\n')
+    : 'não informado';
   return t;
 }

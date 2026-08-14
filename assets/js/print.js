@@ -18,7 +18,6 @@ function tabelaCodigos(rows) {
         <td><strong>${esc(r.codigo)}</strong></td>
         <td>${esc(r.desc || '—')}</td>
         <td class="num">${esc(r.porte)}</td>
-        <td class="num">${esc(r.pct)}</td>
         <td class="num">${esc(brl(r.final))}</td>
       </tr>`
     )
@@ -29,7 +28,7 @@ function tabelaCodigos(rows) {
       <thead>
         <tr>
           <th>Código</th><th>Descrição</th>
-          <th class="num">Porte</th><th class="num">%</th><th class="num">Valor</th>
+          <th class="num">Porte</th><th class="num">Valor</th>
         </tr>
       </thead>
       <tbody>${linhas}</tbody>
@@ -39,6 +38,12 @@ function tabelaCodigos(rows) {
 function listaCodigos(rows) {
   return `<ul class="doc__body">${rows
     .map((r) => `<li><strong>${esc(r.codigo)}</strong>: ${esc(r.desc || '—')}</li>`)
+    .join('')}</ul>`;
+}
+
+function listaCids(data, cids) {
+  return `<ul class="doc__body">${cids
+    .map((c) => `<li><strong>${esc(c)}</strong> - ${esc(data.cid[c] || 'descrição não informada')}</li>`)
     .join('')}</ul>`;
 }
 
@@ -81,7 +86,7 @@ export function montarDocumento(data, st, rows) {
 
       <div class="doc__section">
         <h2>CID-10</h2>
-        <div class="doc__body">${cids.length ? esc(cids.join(', ')) : 'não informado'}</div>
+        ${cids.length ? listaCids(data, cids) : '<div class="doc__body">não informado</div>'}
       </div>
 
       <div class="doc__foot">
