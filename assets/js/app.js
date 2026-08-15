@@ -1075,6 +1075,13 @@ function render() {
   else el.screen.innerHTML = telaHome();
 
   renderProcbar();
+
+  // com 8 anos de tabela, a tira de anos pode rolar; garante que o ano
+  // selecionado fique visível mesmo quando não é um dos primeiros
+  if (st.screen === 'cesta') {
+    const btnAno = el.screen.querySelector('.ano--on');
+    if (btnAno) btnAno.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }
 }
 
 /** Re-renderiza apenas a tela atual (sem mexer no scroll nem no campo de busca). */
